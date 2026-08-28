@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "EvidenceReady system architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "intake-path",
+        "label": "Intake to Gemini",
+        "focus": ["importer", "ui", "routes", "parser", "control", "gemini"],
+        "note": "Product manager uploads or loads a sample; the server extracts text, then Gemini fills structured slots."
+      },
+      {
+        "id": "control-plane",
+        "label": "Deterministic control",
+        "focus": ["control", "gemini", "ui", "session"],
+        "note": "Zod, citation checks, planning, and readiness stay in TypeScript; Gemini never decides confirmation."
+      },
+      {
+        "id": "key-isolation",
+        "label": "Server-only key",
+        "focus": ["secrets", "routes", "gemini", "ui"],
+        "note": "GEMINI_KEY stays in .env.local and never returns to the browser."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "importer",
+      "type": "external",
+      "label": "Product manager",
+      "sublabel": "Private-label importer",
+      "pos": [40, 300],
+      "size": [150, 64]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Guided-split UI",
+      "sublabel": "Next.js App Router",
+      "tag": "Intake · Interview · Report",
+      "pos": [280, 292],
+      "size": [168, 72]
+    },
+    {
+      "id": "session",
+      "type": "database",
+      "label": "Browser session",
+      "sublabel": "Dossier + excerpts",
+      "pos": [280, 480],
+      "size": [168, 60]
+    },
+    {
+      "id": "fixtures",
+      "type": "external",
+      "label": "Kettle fixture",
+      "sublabel": "Bundled PDF + JSON",
+      "pos": [280, 96],
+      "size": [168, 60]
+    },
+    {
+      "id": "routes",
+      "type": "backend",
+      "label": "Server routes",
+      "sublabel": "Document + Gemini ops",
+      "pos": [560, 296],
+      "size": [160, 68]
+    },
+    {
+      "id": "parser",
+      "type": "backend",
+      "label": "PDF text parser",
+      "sublabel": "Page-bounded text",
+      "pos": [560, 480],
+      "size": [160, 60]
+    },
+    {
+      "id": "secrets",
+      "type": "security",
+      "label": ".env.local",
+      "sublabel": "GEMINI_KEY",
+      "tag": "Server only",
+      "pos": [560, 96],
+      "size": [160, 60]
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "Control plane",
+      "sublabel": "Zod · verify · plan",
+      "tag": "Readiness policy",
+      "pos": [840, 288],
+      "size": [168, 76]
+    },
+    {
+      "id": "gemini",
+      "type": "external",
+      "label": "Google Gemini",
+      "sublabel": "Structured extraction",
+      "brand": "google-gemini",
+      "pos": [1120, 292],
+      "size": [160, 72]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Browser",
+      "wraps": ["ui", "session"]
+    },
+    {
+      "kind": "region",
+      "label": "Next.js server",
+      "wraps": ["routes", "parser", "control", "secrets"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Key never leaves the server",
+      "wraps": ["secrets", "routes"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "importer-to-ui",
+      "from": "importer",
+      "to": "ui",
+      "label": "Upload / sample",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui-to-routes",
+      "from": "ui",
+      "to": "routes",
+      "label": "POST extract",
+      "variant": "emphasis"
+    },
+    {
+      "id": "routes-to-parser",
+      "from": "routes",
+      "to": "parser",
+      "label": "Extract pages",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 32
+    },
+    {
+      "id": "routes-to-control",
+      "from": "routes",
+      "to": "control",
+      "label": "Text + answers",
+      "variant": "emphasis"
+    },
+    {
+      "id": "control-to-gemini",
+      "from": "control",
+      "to": "gemini",
+      "label": "Structured JSON",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui-to-session",
+      "from": "ui",
+      "to": "session",
+      "label": "Persist dossier",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 32
+    },
+    {
+      "id": "secrets-to-routes",
+      "from": "secrets",
+      "to": "routes",
+      "label": "GEMINI_KEY",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 32
+    },
+    {
+      "id": "fixtures-to-ui",
+      "from": "fixtures",
+      "to": "ui",
+      "label": "Offline smoke path",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 32
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Single Next.js app",
+      "items": [
+        "App Router serves the UI and server-only document routes",
+        "No separate API service or database"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Control plane",
+      "items": [
+        "Gemini extracts and phrases; TypeScript verifies quotes, plans questions, and derives readiness",
+        "The model cannot invent fields, confirm unsupported citations, or score compliance"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Assessment-grade privacy",
+      "items": [
+        "Uploads stay in memory; the browser stores only structured session data",
+        "GEMINI_KEY remains in .env.local and is never returned to the client"
+      ]
+    }
+  ]
+}
