@@ -145,7 +145,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T5 — Planner, apply, readiness
 
-- [ ] **Do:** Rank questions (conflicts first), three question shapes, soft cap pause, deterministic parse then proposal apply, user-vs-document conflict, adjudication marker, declared-unavailable marker, readiness derivation (unavailable still blocks).
+- [x] **Do:** Rank questions (conflicts first), three question shapes, soft cap pause, deterministic parse then proposal apply, user-vs-document conflict, adjudication marker, declared-unavailable marker, readiness derivation (unavailable still blocks).
 
 - **Blocked by:** T3
 - **Plan mode:** high
@@ -190,5 +190,6 @@ Per subtask, obey `TDD suitable`: `yes` means strict **test-driven-development**
 | 2026-08-29 | T1 complete: package.json, TypeScript, Vitest, `.env.example`, `/dist` gitignore |
 | 2026-08-29 | T3 complete: verify, normalize, reconcile, coverage |
 | 2026-08-29 | T4 complete: bundled kettle fixtures (TXT, PDF, recorded extraction, page corpus) |
+| 2026-08-29 | T5 complete: planner, apply, readiness |
 
 

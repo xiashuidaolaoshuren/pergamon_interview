@@ -1,9 +1,30 @@
 export { essentialKeys, KETTLE_FIELDS, type FieldDefinition } from "./fields.js";
 export {
+  applyEvent,
+  parseAnswer,
+  type ApplyEvent,
+  type ApplyResult,
+} from "./apply.js";
+export {
   assessCoverage,
   ESSENTIAL_COVERAGE_THRESHOLD,
 } from "./coverage.js";
 export { normalizeValue } from "./normalize.js";
+export {
+  nextQuestion,
+  shouldPause,
+  SOFT_CAP,
+  type Question,
+  type QuestionShape,
+} from "./planner.js";
+export {
+  authoringReadiness,
+  READINESS_VERDICTS,
+  type BlockerReason,
+  type ReadinessBlocker,
+  type ReadinessResult,
+  type ReadinessVerdict,
+} from "./readiness.js";
 export {
   reconcileCandidates,
   type ReconcileInput,
