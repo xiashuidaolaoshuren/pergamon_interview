@@ -87,7 +87,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T1 — Repo and test scaffold
 
-- [ ] **Do:** Add `package.json`, TypeScript, Vitest, `.env.example` (`GEMINI_KEY`), and `/dist` in `.gitignore`. No product logic.
+- [x] **Do:** Add `package.json`, TypeScript, Vitest, `.env.example` (`GEMINI_KEY`), and `/dist` in `.gitignore`. No product logic.
 - **Blocked by:** —
 - **Plan mode:** skip
 - **TDD suitable:** no
@@ -153,3 +153,4 @@ Per subtask, obey **`TDD suitable`**: **`yes`** means strict **test-driven-devel
 | Date | Change |
 |------|--------|
 | 2026-08-29 | Initial backend plan |
+| 2026-08-29 | T1 complete: package.json, TypeScript, Vitest, `.env.example`, `/dist` gitignore |
