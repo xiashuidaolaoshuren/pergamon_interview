@@ -1,6 +1,6 @@
 # OpenDesign handoff — EvidenceReady UI prototype
 
-Build a **clickable HTML product prototype** (not a landing page, not the Next.js app). Visual treatment is yours. Information hierarchy, states, provenance labels, and interaction boundaries are already decided — do not invent new screens, fields, or copy that contradicts the spec.
+Build a **clickable HTML product prototype** (not a landing page, not the Vite app). Visual treatment is yours. Information hierarchy, states, provenance labels, and interaction boundaries are already decided — do not invent new screens, fields, or copy that contradicts the spec.
 
 ## Read first
 

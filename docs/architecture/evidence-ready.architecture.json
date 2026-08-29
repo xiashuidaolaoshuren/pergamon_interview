@@ -39,7 +39,7 @@
       "id": "ui",
       "type": "frontend",
       "label": "Guided-split UI",
-      "sublabel": "Next.js App Router",
+      "sublabel": "React · Vite · shadcn",
       "tag": "Intake · Interview · Report",
       "pos": [280, 292],
       "size": [168, 72]
@@ -112,7 +112,7 @@
     },
     {
       "kind": "region",
-      "label": "Next.js server",
+      "label": "TypeScript server",
       "wraps": ["routes", "parser", "control", "secrets"]
     },
     {
@@ -192,9 +192,9 @@
   "cards": [
     {
       "dot": "cyan",
-      "title": "Single Next.js app",
+      "title": "Single TypeScript repo",
       "items": [
-        "App Router serves the UI and server-only document routes",
+        "Vite SPA for the UI; same-repo server for document and Gemini routes",
         "No separate API service or database"
       ]
     },
@@ -202,7 +202,7 @@
       "dot": "emerald",
       "title": "Control plane",
       "items": [
-        "Gemini extracts and phrases; TypeScript verifies quotes, plans questions, and derives readiness",
+        "Gemini extracts and interprets answers; TypeScript verifies quotes, plans questions, and derives readiness",
         "The model cannot invent fields, confirm unsupported citations, or score compliance"
       ]
     },

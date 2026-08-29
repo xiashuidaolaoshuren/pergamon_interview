@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-08-28
-revised: 2026-08-28
+revised: 2026-08-29
 ---
 
 # Keep Gemini inside a deterministic control plane
@@ -16,7 +16,7 @@ Pergamon’s public claim is “structure first, controlled AI second.” A free
 
 ## Consequences
 
-Readiness is derived from dossier status, not model prose. Unsupported quotes are rejected even if the extracted value looks plausible. The bundled fixture must demonstrate citation rejection without depending on a live Gemini mistake. Stack: Next.js App Router, server-only Gemini key, session state in the browser, no database.
+Readiness is derived from dossier status, not model prose. Unsupported quotes are rejected even if the extracted value looks plausible. The bundled fixture must demonstrate citation rejection without depending on a live Gemini mistake. Stack: React and Vite with Tailwind CSS v4 and shadcn/ui for the interface, a same-repo TypeScript server for document and Gemini operations, server-only Gemini key, session state in the browser, no database.
 
 ## Revision, 2026-08-28
 
@@ -25,3 +25,7 @@ This ADR originally also allowed Gemini to “phrase an approved question.” Th
 In exchange, answer interpretation is broader than first described: one free-text answer may produce proposals across several fields, so a product manager who volunteers a correction alongside the answer is not ignored. The control is that a proposal remains a proposal — the user confirms it, TypeScript writes it, and it can never produce a confirmed value.
 
 The model-supplied confidence score is also removed. Verification already answers the question confidence pretends to answer, and far more credibly; keeping a self-reported number would have left the only unverifiable input in a system whose entire subject is verifiability.
+
+## Revision, 2026-08-29
+
+The interface stack is React and Vite with Tailwind CSS v4 and shadcn/ui, not Next.js App Router. Document parsing and Gemini calls remain on a same-repo TypeScript server so the API key never reaches the browser. The control plane is unchanged: TypeScript still owns verification, planning, confirmation, and readiness.

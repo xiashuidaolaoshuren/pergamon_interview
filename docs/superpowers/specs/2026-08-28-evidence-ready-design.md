@@ -201,12 +201,14 @@ The recorded answers used by the smoke test parse deterministically, so the auto
 
 ### 7.1 Application Shape
 
-EvidenceReady is a single Next.js and TypeScript application. Next.js renders the interface and hosts server-only document and Gemini operations. There is no separate API service or database.
+EvidenceReady is a single TypeScript repository: a React SPA for the interface and a same-repo Node server for document and Gemini operations. There is no separate API service or database.
 
 Major technical elements:
 
-- Next.js App Router for pages and server endpoints.
+- React and Vite for the interface.
+- Tailwind CSS v4 and shadcn/ui for layout, status chips, forms, drawers, and other primitives. Domain screens (`Intake`, `QuestionPanel`, and the rest of §7.2) compose those primitives; they still consume structured domain data only.
 - TypeScript for shared domain contracts.
+- A same-repo TypeScript server for PDF text extraction and Gemini calls, so the API key never reaches the browser.
 - A single declarative field table as the source of truth for schema, prompt, planning, questions and readiness.
 - Gemini for structured extraction and for interpreting free-text answers into proposals.
 - Zod for runtime validation of model and API payloads.
@@ -230,7 +232,7 @@ The Gemini key is configured through `.env.local`, used only on the server, and 
 - `ReadinessReport`: deterministic summary, extraction mode, and complete traceable dossier.
 - `ModeBadge`: persistent recorded-or-live indicator.
 
-Components consume structured domain data. They never render arbitrary model-generated HTML.
+Components consume structured domain data. They never render arbitrary model-generated HTML. Visual treatment from the OpenDesign prototype is implemented with Tailwind v4 and shadcn/ui, not by embedding the prototype markup.
 
 ### 7.3 Processing Flow
 
