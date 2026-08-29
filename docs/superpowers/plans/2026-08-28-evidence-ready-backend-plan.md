@@ -122,7 +122,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T3 — Verify, normalize, reconcile, coverage
 
-- [ ] **Do:** Implement quote verification + window capture, value-kind normalization, reconciliation (scalar conflict, list union, prose first-source), rejected-candidate retention, essential-coverage threshold.
+- [x] **Do:** Implement quote verification + window capture, value-kind normalization, reconciliation (scalar conflict, list union, prose first-source), rejected-candidate retention, essential-coverage threshold.
 
 - **Blocked by:** T2
 - **Plan mode:** high
@@ -188,5 +188,6 @@ Per subtask, obey `TDD suitable`: `yes` means strict **test-driven-development**
 | ---------- | -------------------------------------------------------------------------------- |
 | 2026-08-29 | Initial backend plan                                                             |
 | 2026-08-29 | T1 complete: package.json, TypeScript, Vitest, `.env.example`, `/dist` gitignore |
+| 2026-08-29 | T3 complete: verify, normalize, reconcile, coverage |
 
 

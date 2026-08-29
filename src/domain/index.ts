@@ -1,10 +1,21 @@
 export { essentialKeys, KETTLE_FIELDS, type FieldDefinition } from "./fields.js";
 export {
+  assessCoverage,
+  ESSENTIAL_COVERAGE_THRESHOLD,
+} from "./coverage.js";
+export { normalizeValue } from "./normalize.js";
+export {
+  reconcileCandidates,
+  type ReconcileInput,
+  type VerifiedCandidate,
+} from "./reconcile.js";
+export {
   extractionResponseSchema,
   proposalSchema,
   type ExtractionResponse,
   type ProposalResponse,
 } from "./schemas.js";
+export { captureWindow, verifyCitation, WINDOW_RADIUS } from "./verify.js";
 export {
   EXTRACTION_MODES,
   FIELD_STATUSES,
