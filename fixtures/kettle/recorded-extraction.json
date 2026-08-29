@@ -1,0 +1,114 @@
+{
+  "candidates": [
+    {
+      "fieldKey": "product-name",
+      "value": "Acme Rapid Kettle",
+      "document": "supplier-spec",
+      "page": 1,
+      "quote": "Acme Rapid Kettle"
+    },
+    {
+      "fieldKey": "model-identifier",
+      "value": "ARK-1500",
+      "document": "supplier-spec",
+      "page": 1,
+      "quote": "ARK-1500"
+    },
+    {
+      "fieldKey": "manufacturer-or-supplier",
+      "value": "Acme Appliances Ltd.",
+      "document": "supplier-spec",
+      "page": 1,
+      "quote": "Acme Appliances Ltd."
+    },
+    {
+      "fieldKey": "rated-voltage",
+      "value": "230 V",
+      "document": "supplier-spec",
+      "page": 1,
+      "quote": "230 V"
+    },
+    {
+      "fieldKey": "rated-frequency",
+      "value": "50 Hz",
+      "document": "supplier-spec",
+      "page": 1,
+      "quote": "50 Hz"
+    },
+    {
+      "fieldKey": "rated-power",
+      "value": "2200 W",
+      "document": "supplier-spec",
+      "page": 2,
+      "quote": "2200 W"
+    },
+    {
+      "fieldKey": "capacity",
+      "value": "1.5 L",
+      "document": "supplier-spec",
+      "page": 2,
+      "quote": "1.5 L"
+    },
+    {
+      "fieldKey": "capacity",
+      "value": "1.7 L",
+      "document": "draft-manual",
+      "page": 2,
+      "quote": "1.7 L"
+    },
+    {
+      "fieldKey": "intended-use",
+      "value": "Boiling water for domestic use.",
+      "document": "supplier-spec",
+      "page": 2,
+      "quote": "Boiling water for domestic use."
+    },
+    {
+      "fieldKey": "primary-materials",
+      "value": ["stainless steel", "polypropylene"],
+      "document": "supplier-spec",
+      "page": 2,
+      "quote": "stainless steel body with a polypropylene handle"
+    },
+    {
+      "fieldKey": "included-components",
+      "value": ["kettle", "power base", "spout filter"],
+      "document": "draft-manual",
+      "page": 3,
+      "quote": "The kettle includes: kettle, power base, and spout filter."
+    },
+    {
+      "fieldKey": "core-operating-steps",
+      "value": [
+        "Sit the 360-degree power base on a level surface and plug it in.",
+        "Fill the kettle, close the lid, and place it on the base.",
+        "Press the switch down.",
+        "The kettle switches off automatically when the water boils."
+      ],
+      "document": "draft-manual",
+      "page": 3,
+      "quote": "The kettle switches off automatically when the water boils."
+    },
+    {
+      "fieldKey": "automatic-shutoff",
+      "value": "A steam sensor switches the kettle off at boil. Boil-dry protection cuts power if the vessel is empty.",
+      "document": "supplier-spec",
+      "page": 3,
+      "quote": "a steam sensor switches the kettle off at boil."
+    },
+    {
+      "fieldKey": "cleaning-restrictions",
+      "value": "Do not immerse the power base. Do not use abrasive pads on the heating plate.",
+      "document": "supplier-spec",
+      "page": 3,
+      "quote": "Do not immerse the power base."
+    },
+    {
+      "fieldKey": "disposal-information",
+      "value": "This product must not be disposed of with household waste; take it to a WEEE collection point.",
+      "document": "supplier-spec",
+      "page": 3,
+      "quote": "this product must not be disposed of with household waste"
+    }
+  ]
+}

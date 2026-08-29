@@ -14,5 +14,5 @@
     "noUncheckedIndexedAccess": true,
     "moduleDetection": "force"
   },
-  "include": ["src", "server", "vitest.config.ts"]
+  "include": ["src", "server", "fixtures", "vitest.config.ts"]
 }

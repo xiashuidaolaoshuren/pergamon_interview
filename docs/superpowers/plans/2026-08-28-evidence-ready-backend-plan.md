@@ -133,7 +133,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T4 — Bundled kettle fixtures
 
-- [ ] **Do:** Author the two synthetic PDFs/TXT + recorded extraction JSON: capacity 1.5 L vs 1.7 L, missing importer contact, fabricated rated-power quote, other essentials confirmed. Recorded answers for the smoke path must parse deterministically (no interpret call).
+- [x] **Do:** Author the two synthetic PDFs/TXT + recorded extraction JSON: capacity 1.5 L vs 1.7 L, missing importer contact, fabricated rated-power quote, other essentials confirmed. Recorded answers for the smoke path must parse deterministically (no interpret call).
 
 - **Blocked by:** T2
 - **Plan mode:** medium
@@ -189,5 +189,6 @@ Per subtask, obey `TDD suitable`: `yes` means strict **test-driven-development**
 | 2026-08-29 | Initial backend plan                                                             |
 | 2026-08-29 | T1 complete: package.json, TypeScript, Vitest, `.env.example`, `/dist` gitignore |
 | 2026-08-29 | T3 complete: verify, normalize, reconcile, coverage |
+| 2026-08-29 | T4 complete: bundled kettle fixtures (TXT, PDF, recorded extraction, page corpus) |
 
 
