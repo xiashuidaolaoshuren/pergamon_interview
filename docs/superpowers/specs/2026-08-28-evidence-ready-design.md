@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-28  
 **Status:** Approved for implementation planning  
-**Revised:** 2026-08-28, after a design review that reworked the model boundary, conflict semantics, field importance, and the bundled fixture.
+**Revised:** 2026-08-29 — frontend stack is React, Vite, Tailwind CSS v4, and shadcn/ui; an OpenDesign prototype exists and is the visual contract for those components.
 
 Domain vocabulary for this specification is defined in [`CONTEXT.md`](../../../CONTEXT.md). Where this document says *candidate*, *citation*, *evidence*, *conflict*, *adjudication* or *proposal*, it means them in the glossary's sense.
 
@@ -206,7 +206,7 @@ EvidenceReady is a single TypeScript repository: a React SPA for the interface a
 Major technical elements:
 
 - React and Vite for the interface.
-- Tailwind CSS v4 and shadcn/ui for layout, status chips, forms, drawers, and other primitives. Domain screens (`Intake`, `QuestionPanel`, and the rest of §7.2) compose those primitives; they still consume structured domain data only.
+- Tailwind CSS v4 and shadcn/ui for primitives. Domain screens in §7.2 compose those primitives to match the OpenDesign prototype (§10); they still consume structured domain data only.
 - TypeScript for shared domain contracts.
 - A same-repo TypeScript server for PDF text extraction and Gemini calls, so the API key never reaches the browser.
 - A single declarative field table as the source of truth for schema, prompt, planning, questions and readiness.
@@ -232,7 +232,17 @@ The Gemini key is configured through `.env.local`, used only on the server, and 
 - `ReadinessReport`: deterministic summary, extraction mode, and complete traceable dossier.
 - `ModeBadge`: persistent recorded-or-live indicator.
 
-Components consume structured domain data. They never render arbitrary model-generated HTML. Visual treatment from the OpenDesign prototype is implemented with Tailwind v4 and shadcn/ui, not by embedding the prototype markup.
+Each screen maps to a prototype HTML file under `prototype/screens/`. Implement the React component to match that screen's layout, chrome, labels, and states. Do not invent a parallel visual language.
+
+| Component | Prototype screen |
+|---|---|
+| `Intake` | `intake.html` |
+| `ExtractionProgress` | `extraction.html` |
+| `InsufficientEvidence` | `insufficient.html` |
+| `InterviewWorkspace`, `QuestionPanel`, `DossierPanel`, `SourceDrawer`, `ProposalConfirmation`, `ModeBadge` | `interview.html` |
+| `ReadinessReport` | `report.html` |
+
+Components consume structured domain data. They never render arbitrary model-generated HTML. Rebuild the prototype in Tailwind v4 and shadcn/ui; do not embed the prototype markup.
 
 ### 7.3 Processing Flow
 
@@ -345,19 +355,25 @@ The model may not:
 
 ## 10. Interface Design
 
-The approved layout is **A — Guided split**.
+The approved layout is **A — Guided split**. An OpenDesign prototype has been built and is the visual contract for the frontend. React components in §7.2 must follow it: same screens, hierarchy, provenance labels, chrome, and interaction boundaries. shadcn/ui and Tailwind v4 are how those screens are rebuilt, not a license to redesign them.
+
+Prototype sources (local; `/prototype` is gitignored):
+
+- Click-through: [`prototype/evidenceready-prototype-v2.html`](../../../prototype/evidenceready-prototype-v2.html)
+- Tokens, type, spacing, and accent budget: [`prototype/DESIGN.md`](../../../prototype/DESIGN.md)
+- Brief that produced it: [`docs/design/opendesign-handoff.md`](../../design/opendesign-handoff.md)
 
 During the interview, the current question occupies the larger left area. The live dossier and selected source evidence remain visible on the right. This gives non-experts a focused task while making the agent's state and traceability clear during a short assessment demo.
 
-The application states are:
+The application states, matching the prototype screens, are:
 
 1. A focused intake screen with extraction-mode choice.
 2. An extraction progress view.
 3. The insufficient-evidence outcome, where applicable.
-4. The guided-split evidence interview.
+4. The guided-split evidence interview, including source drawer, proposal confirmation, and question-budget pause as overlays.
 5. A structured readiness report.
 
-Visual design may be explored in OpenDesign, but the approved information hierarchy, states, provenance labels, and interaction boundaries remain fixed.
+If implementation choices conflict with the prototype, match the prototype first, then keep the domain rules in this spec (read-only dossier, conflicts as questions, five statuses, two verdicts). Information hierarchy and interaction boundaries in this spec still override any prototype copy that drifts from the glossary.
 
 ## 11. Readiness Policy
 
@@ -469,12 +485,12 @@ The demo must not depend on producing a fresh model mistake. The recorded extrac
 Hours are not a binding constraint on this project, so the sequence below is a build order and a scope guard rather than a schedule.
 
 1. Project setup, the declarative field table, and the bundled documents and recorded extraction.
-2. A static vertical slice through all five application states.
+2. A static vertical slice through all five application states, laid out from the OpenDesign prototype.
 3. PDF text extraction, Gemini structured output, citation verification, value-kind normalization and reconciliation.
 4. The question planner, interview state transitions, proposals and confirmation, and readiness derivation.
 5. Failure states, unit and fixture tests, component tests, and the Playwright smoke test.
 6. `PROPOSAL.md`, which the brief weighs equally with the code.
-7. Visual treatment and responsive polish.
+7. Responsive polish against the prototype, not a second visual pass.
 8. A clean-clone run following the README literally, a commit-history review, and a rehearsal of two or three likely live changes.
 
 The stop-building threshold is a complete bundled path with traceable values, one conflict, one gap, one unverified value, adaptive questions, and a readiness report. Optional upload refinements and visual polish cannot put that path at risk.
