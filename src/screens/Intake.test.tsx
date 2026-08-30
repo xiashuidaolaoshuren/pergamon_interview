@@ -1,0 +1,93 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Intake } from "./Intake.js";
+
+describe("Intake", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("defaults to recorded mode and shows privacy sentence", () => {
+    render(
+      <Intake
+        onStartBundled={vi.fn()}
+        onStartUpload={vi.fn()}
+      />,
+    );
+
+    const modeGroup = screen.getByRole("radiogroup", { name: /extraction mode/i });
+    const recorded = within(modeGroup).getByRole("radio", { name: /recorded extraction/i });
+    const live = within(modeGroup).getByRole("radio", { name: /live extraction/i });
+
+    expect(recorded).toBeChecked();
+    expect(live).not.toBeChecked();
+    expect(
+      screen.getByText(/Image-only PDFs are unsupported/i),
+    ).toBeInTheDocument();
+  });
+
+  it("switches bundled mode to live when live radio is selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake
+        onStartBundled={vi.fn()}
+        onStartUpload={vi.fn()}
+      />,
+    );
+
+    const modeGroup = screen.getByRole("radiogroup", { name: /extraction mode/i });
+    await user.click(within(modeGroup).getByRole("radio", { name: /live extraction/i }));
+
+    expect(within(modeGroup).getByRole("radio", { name: /live extraction/i })).toBeChecked();
+    expect(within(modeGroup).getByRole("radio", { name: /recorded extraction/i })).not.toBeChecked();
+  });
+
+  it("calls onStartBundled with selected mode", async () => {
+    const user = userEvent.setup();
+    const onStartBundled = vi.fn();
+    render(
+      <Intake onStartBundled={onStartBundled} onStartUpload={vi.fn()} />,
+    );
+
+    const modeGroup = screen.getByRole("radiogroup", { name: /extraction mode/i });
+    await user.click(within(modeGroup).getByRole("radio", { name: /live extraction/i }));
+    await user.click(screen.getByRole("button", { name: /load the bundled example/i }));
+
+    expect(onStartBundled).toHaveBeenCalledWith("live");
+  });
+
+  it("validates uploads before calling onStartUpload and shows inline error", async () => {
+    const user = userEvent.setup();
+    const onStartUpload = vi.fn();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={onStartUpload} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /start from uploaded documents/i }),
+    );
+
+    expect(onStartUpload).not.toHaveBeenCalled();
+    expect(screen.getByText(/at least one file is required/i)).toBeInTheDocument();
+  });
+
+  it("calls onStartUpload with staged files when valid", async () => {
+    const user = userEvent.setup();
+    const onStartUpload = vi.fn();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={onStartUpload} />,
+    );
+
+    const input = screen.getByLabelText(/choose pdf or txt files/i);
+    const file = new File(["x"], "spec.pdf", { type: "application/pdf" });
+    await user.upload(input, file);
+    await user.click(
+      screen.getByRole("button", { name: /start from uploaded documents/i }),
+    );
+
+    expect(onStartUpload).toHaveBeenCalledOnce();
+    expect(onStartUpload.mock.calls[0]?.[0]).toEqual([file]);
+  });
+});

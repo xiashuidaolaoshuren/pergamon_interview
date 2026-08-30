@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { Button } from "@/components/ui/button";
 import { ModeBadge } from "@/components/ModeBadge";
 import {
@@ -6,6 +6,9 @@ import {
   initialAppState,
   type AppState,
 } from "@/app-state";
+import { ApiError, extractFixture, extractUpload } from "@/api";
+import type { ExtractionMode } from "@/domain/types.js";
+import { Intake } from "@/screens/Intake";
 import { clearSession, loadSession, saveSession } from "@/session";
 import type { StoredSession } from "@/session";
 
@@ -44,6 +47,52 @@ export default function App() {
     });
   }, [state]);
 
+  const startExtraction = useCallback(
+    async (mode: ExtractionMode, files?: File[]) => {
+      dispatch({ type: "start-extract", mode });
+
+      try {
+        const result = files
+          ? await extractUpload(files)
+          : await extractFixture(mode);
+
+        dispatch({
+          type: "extract-success",
+          coverage: result.coverage,
+          dossier: result.dossier,
+          rejected: result.rejected,
+          counts: result.counts,
+          failedSources: result.failedSources,
+          mode: result.mode,
+        });
+      } catch (error) {
+        const apiError =
+          error instanceof ApiError
+            ? error
+            : new ApiError("network", "Network request failed.");
+        dispatch({
+          type: "extract-failure",
+          error: { code: apiError.code, message: apiError.message },
+        });
+      }
+    },
+    [],
+  );
+
+  const handleStartBundled = useCallback(
+    (mode: ExtractionMode) => {
+      void startExtraction(mode);
+    },
+    [startExtraction],
+  );
+
+  const handleStartUpload = useCallback(
+    (files: File[]) => {
+      void startExtraction("live", files);
+    },
+    [startExtraction],
+  );
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="topnav">
@@ -68,24 +117,30 @@ export default function App() {
         </div>
       </header>
 
-      <main className="page-wrap flex flex-1 flex-col justify-center py-[var(--gap-xl)]">
-        <p className="eyebrow">Evidence intake · Product documentation</p>
-        <h1 className="max-w-[18ch]">
-          Know what your documents can prove before authoring begins.
-        </h1>
-        <p className="lead mt-[var(--gap-md)]">
-          EvidenceReady extracts a fixed product dossier from your source
-          documents, verifies every citation against the page it names, and
-          interviews you about whatever conflicts or is still missing.
-        </p>
-        <div className="mt-[var(--gap-lg)]">
-          <Button
-            type="button"
-            onClick={() => dispatch({ type: "start-extract", mode: "recorded" })}
-          >
-            Load the bundled example
-          </Button>
-        </div>
+      <main className="page-wrap flex flex-1 flex-col py-[var(--gap-xl)]">
+        {state.phase === "intake" ? (
+          <Intake
+            onStartBundled={handleStartBundled}
+            onStartUpload={handleStartUpload}
+          />
+        ) : null}
+
+        {state.phase === "extracting" ? (
+          <section className="screen-pad">
+            <p className="eyebrow">Extracting dossier</p>
+            <h2>Extracting and verifying the dossier</h2>
+            <p className="lead mt-[var(--gap-sm)]">
+              Every candidate must name a document, a page, and an exact quote.
+            </p>
+            {state.error ? (
+              <p className="note mt-[var(--gap-md)] text-[var(--st-conflict)]">
+                {state.error.message}
+              </p>
+            ) : (
+              <p className="note mt-[var(--gap-md)]">Working…</p>
+            )}
+          </section>
+        ) : null}
       </main>
 
       <footer className="pagefoot">
