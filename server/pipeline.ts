@@ -16,7 +16,7 @@ import type {
 } from "../src/domain/types.js";
 import { verifyCitation } from "../src/domain/verify.js";
 import { extractCandidates, type GeminiTransport } from "./gemini.js";
-import { extractPages } from "./pdf.js";
+import { extractPages, PdfExtractError } from "./pdf.js";
 
 interface PageCorpusDocument {
   id: string;
@@ -43,6 +43,23 @@ export interface RunExtractionInput {
   apiKey?: string;
 }
 
+export interface FailedSource {
+  id: string;
+  filename: string;
+  code: string;
+  message: string;
+}
+
+export class AllSourcesFailedError extends Error {
+  readonly failedSources: FailedSource[];
+
+  constructor(failedSources: FailedSource[]) {
+    super("All uploaded sources failed to parse.");
+    this.name = "AllSourcesFailedError";
+    this.failedSources = failedSources;
+  }
+}
+
 export interface RunExtractionResult {
   mode: ExtractionMode;
   dossier: DossierField[];
@@ -54,6 +71,7 @@ export interface RunExtractionResult {
     conflicts: number;
     missing: number;
   };
+  failedSources?: FailedSource[];
 }
 
 function loadJson<T>(path: string): T {
@@ -137,25 +155,45 @@ async function loadRecordedInputs(fixtureDir: string): Promise<{
 
 async function loadLiveInputs(
   uploads: PipelineUpload[],
-  transport: GeminiTransport,
+  transport: GeminiTransport | undefined,
   apiKey?: string,
 ): Promise<{
   extraction: ReturnType<typeof extractionResponseSchema.parse>;
   corpus: PageCorpus;
+  failedSources: FailedSource[];
 }> {
   const documents: PageCorpusDocument[] = [];
+  const failedSources: FailedSource[] = [];
+
   for (const upload of uploads) {
-    const extracted = await extractPages({
-      id: upload.id,
-      filename: upload.filename,
-      mediaType: upload.mediaType,
-      buffer: upload.buffer,
-    });
-    documents.push({
-      id: extracted.id,
-      filename: extracted.filename,
-      pages: extracted.pages,
-    });
+    try {
+      const extracted = await extractPages({
+        id: upload.id,
+        filename: upload.filename,
+        mediaType: upload.mediaType,
+        buffer: upload.buffer,
+      });
+      documents.push({
+        id: extracted.id,
+        filename: extracted.filename,
+        pages: extracted.pages,
+      });
+    } catch (error) {
+      if (error instanceof PdfExtractError) {
+        failedSources.push({
+          id: upload.id,
+          filename: upload.filename,
+          code: error.code,
+          message: error.message,
+        });
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (documents.length === 0) {
+    throw new AllSourcesFailedError(failedSources);
   }
 
   const prompt = extractionPrompt({ documents });
@@ -168,20 +206,26 @@ async function loadLiveInputs(
   return {
     extraction,
     corpus: { documents },
+    failedSources,
   };
 }
 
 export async function runExtraction(
   input: RunExtractionInput,
 ): Promise<RunExtractionResult> {
-  const { extraction, corpus } =
+  const loaded =
     input.mode === "recorded"
-      ? await loadRecordedInputs(input.fixtureDir!)
+      ? {
+          ...(await loadRecordedInputs(input.fixtureDir!)),
+          failedSources: [] as FailedSource[],
+        }
       : await loadLiveInputs(
           input.uploads ?? [],
-          input.transport!,
+          input.transport,
           input.apiKey,
         );
+
+  const { extraction, corpus, failedSources } = loaded;
 
   const candidates = extraction.candidates.map(toCandidate);
   const pageLookup = buildPageLookup(corpus);
@@ -204,5 +248,6 @@ export async function runExtraction(
       conflicts: countConflicts(dossier),
       missing: countMissing(dossier),
     },
+    ...(failedSources.length > 0 ? { failedSources } : {}),
   };
 }

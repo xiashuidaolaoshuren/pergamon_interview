@@ -1,0 +1,225 @@
+import { readFileSync } from "node:fs";
+import { basename, join } from "node:path";
+import { Hono } from "hono";
+import { z } from "zod";
+import { interpretPrompt } from "../src/domain/prompt.js";
+import type { DossierField } from "../src/domain/types.js";
+import {
+  AllSourcesFailedError,
+  runExtraction,
+  type PipelineUpload,
+  type RunExtractionResult,
+} from "./pipeline.js";
+import {
+  GeminiError,
+  interpretAnswer as defaultInterpretAnswer,
+  type GeminiTransport,
+} from "./gemini.js";
+import { validateIntakeUploads } from "./intake.js";
+import { PdfExtractError } from "./pdf.js";
+
+export { MAX_UPLOAD_BYTES, MAX_UPLOAD_COUNT } from "./intake.js";
+
+export interface ApiErrorBody {
+  error: {
+    code: string;
+    message: string;
+    envVar?: string;
+    failedSources?: Array<{
+      id: string;
+      filename: string;
+      code: string;
+      message: string;
+    }>;
+  };
+}
+
+export interface HttpDeps {
+  fixtureDir: string;
+  apiKey?: string;
+  transport?: GeminiTransport;
+  runExtractionFn?: typeof runExtraction;
+  interpretAnswerFn?: typeof defaultInterpretAnswer;
+}
+
+const fixtureExtractSchema = z.object({
+  source: z.literal("fixture"),
+  mode: z.enum(["recorded", "live"]),
+});
+
+const interpretRequestSchema = z.object({
+  fieldKey: z.string(),
+  answerText: z.string(),
+  dossier: z.array(z.custom<DossierField>()),
+});
+
+function jsonError(
+  code: string,
+  message: string,
+  extra: Partial<ApiErrorBody["error"]> = {},
+  status = 400,
+): Response {
+  return Response.json(
+    { error: { code, message, ...extra } },
+    { status },
+  );
+}
+
+function intakeError(uploads: PipelineUpload[]): Response | null {
+  const invalid = validateIntakeUploads(uploads);
+  if (!invalid) return null;
+  return jsonError(invalid.code, invalid.message);
+}
+
+function uploadIdFromFilename(filename: string): string {
+  return basename(filename).replace(/\.[^.]+$/, "");
+}
+
+function dossierSummary(dossier: DossierField[]): string {
+  return dossier.map((field) => `${field.key}: ${field.status}`).join("\n");
+}
+
+async function readUploadFile(file: File): Promise<PipelineUpload> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return {
+    id: uploadIdFromFilename(file.name),
+    filename: file.name,
+    mediaType: file.type || "application/octet-stream",
+    buffer,
+  };
+}
+
+function loadFixtureUploads(fixtureDir: string): PipelineUpload[] {
+  return ["supplier-spec.txt", "draft-manual.txt"].map((filename) => ({
+    id: uploadIdFromFilename(filename),
+    filename,
+    mediaType: "text/plain",
+    buffer: readFileSync(join(fixtureDir, filename)),
+  }));
+}
+
+function mapGeminiError(error: GeminiError): Response {
+  return jsonError(error.code, error.message, {
+    envVar: error.envVar,
+  });
+}
+
+function extractionResponse(result: RunExtractionResult): Response {
+  return Response.json({
+    mode: result.mode,
+    dossier: result.dossier,
+    rejected: result.rejected,
+    coverage: result.coverage,
+    counts: result.counts,
+    ...(result.failedSources ? { failedSources: result.failedSources } : {}),
+  });
+}
+
+export function createApp(deps: HttpDeps) {
+  const app = new Hono();
+  const run = deps.runExtractionFn ?? runExtraction;
+  const interpret = deps.interpretAnswerFn ?? defaultInterpretAnswer;
+
+  app.post("/api/extract", async (c) => {
+    const contentType = c.req.header("content-type") ?? "";
+
+    try {
+      if (contentType.includes("application/json")) {
+        const body = fixtureExtractSchema.parse(await c.req.json());
+
+        if (body.mode === "recorded") {
+          const result = await run({
+            mode: "recorded",
+            fixtureDir: deps.fixtureDir,
+          });
+          return extractionResponse(result);
+        }
+
+        const uploads = loadFixtureUploads(deps.fixtureDir);
+        const invalid = intakeError(uploads);
+        if (invalid) return invalid;
+
+        const result = await run({
+          mode: "live",
+          uploads,
+          transport: deps.transport,
+          apiKey: deps.apiKey,
+        });
+        return extractionResponse(result);
+      }
+
+      if (
+        contentType.includes("multipart/form-data") ||
+        contentType.includes("application/x-www-form-urlencoded")
+      ) {
+        const body = await c.req.parseBody();
+        const rawFiles = body.files;
+        const files = Array.isArray(rawFiles)
+          ? rawFiles.filter((item): item is File => item instanceof File)
+          : rawFiles instanceof File
+            ? [rawFiles]
+            : [];
+
+        const uploads = await Promise.all(files.map(readUploadFile));
+        const invalid = intakeError(uploads);
+        if (invalid) return invalid;
+
+        const result = await run({
+          mode: "live",
+          uploads,
+          transport: deps.transport,
+          apiKey: deps.apiKey,
+        });
+        return extractionResponse(result);
+      }
+
+      return jsonError("invalid-intake", "Expected JSON or multipart upload.");
+    } catch (error) {
+      if (error instanceof GeminiError) {
+        return mapGeminiError(error);
+      }
+      if (error instanceof AllSourcesFailedError) {
+        return jsonError("all-sources-failed", error.message, {
+          failedSources: error.failedSources,
+        });
+      }
+      if (error instanceof PdfExtractError) {
+        return jsonError(error.code, error.message);
+      }
+      throw error;
+    }
+  });
+
+  app.post("/api/interpret", async (c) => {
+    try {
+      const body = interpretRequestSchema.parse(await c.req.json());
+      const prompt = interpretPrompt({
+        fieldKey: body.fieldKey,
+        answerText: body.answerText,
+        dossierSummary: dossierSummary(body.dossier),
+      });
+      const result = await interpret({
+        prompt,
+        transport: deps.transport,
+        apiKey: deps.apiKey,
+      });
+      return Response.json({ proposals: result.proposals });
+    } catch (error) {
+      if (error instanceof GeminiError) {
+        if (error.code === "malformed") {
+          return jsonError(
+            "rephrase",
+            "Could not interpret the answer. Please rephrase.",
+          );
+        }
+        return mapGeminiError(error);
+      }
+      if (error instanceof z.ZodError) {
+        return jsonError("invalid-request", "Invalid interpret request body.");
+      }
+      throw error;
+    }
+  });
+
+  return app;
+}
