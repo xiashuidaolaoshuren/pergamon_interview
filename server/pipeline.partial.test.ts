@@ -46,4 +46,38 @@ describe("runExtraction partial failure", () => {
       "confirmed",
     );
   });
+
+  it("retains facts when a corrupt PDF fails and reports failedSources", async () => {
+    const extraction = readFileSync(join(fixtureDir, "recorded-extraction.json"), "utf8");
+
+    const result = await runExtraction({
+      mode: "live",
+      uploads: [
+        {
+          id: "supplier-spec",
+          filename: "supplier-spec.txt",
+          mediaType: "text/plain",
+          buffer: readFileSync(join(fixtureDir, "supplier-spec.txt")),
+        },
+        {
+          id: "corrupt",
+          filename: "corrupt.pdf",
+          mediaType: "application/pdf",
+          buffer: Buffer.from("not a pdf"),
+        },
+      ],
+      transport: vi.fn(async () => extraction),
+      apiKey: "test-key",
+    });
+
+    expect(result.failedSources).toEqual([
+      expect.objectContaining({
+        filename: "corrupt.pdf",
+        code: "corrupt",
+      }),
+    ]);
+    expect(result.dossier.find((field) => field.key === "product-name")?.status).toBe(
+      "confirmed",
+    );
+  });
 });

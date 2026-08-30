@@ -115,6 +115,27 @@ describe("POST /api/extract live missing key", () => {
   });
 });
 
+describe("POST /api/extract schema failure", () => {
+  it("returns a malformed error envelope when Gemini JSON is structurally invalid", async () => {
+    const app = createApp({
+      fixtureDir,
+      apiKey: "test-key",
+      transport: vi.fn(async () => JSON.stringify({ candidates: "nope" })),
+    });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "live" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: { code: "malformed" },
+    });
+  });
+});
+
 describe("POST /api/interpret", () => {
   it("returns proposals without writing the dossier", async () => {
     const interpretAnswerFn = vi.fn(async () => ({
@@ -165,6 +186,29 @@ describe("POST /api/interpret", () => {
       body: JSON.stringify({
         fieldKey: "importer-contact",
         answerText: "???",
+        dossier: sampleDossier(),
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: { code: "rephrase" },
+    });
+  });
+
+  it("returns a rephrase error when Gemini JSON is structurally invalid", async () => {
+    const app = createApp({
+      fixtureDir,
+      apiKey: "test-key",
+      transport: vi.fn(async () => JSON.stringify({ proposals: "nope" })),
+    });
+
+    const response = await app.request("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldKey: "importer-contact",
+        answerText: "Acme Imports GmbH in Berlin",
         dossier: sampleDossier(),
       }),
     });

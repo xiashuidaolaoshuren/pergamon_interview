@@ -28,4 +28,15 @@ describe("extractPages error mapping", () => {
       }),
     ).rejects.toMatchObject({ code: "image-only" });
   });
+
+  it("maps corrupt PDFs to a typed corrupt error", async () => {
+    await expect(
+      extractPages({
+        id: "corrupt",
+        filename: "corrupt.pdf",
+        mediaType: "application/pdf",
+        buffer: Buffer.from("not a pdf"),
+      }),
+    ).rejects.toMatchObject({ name: "PdfExtractError", code: "corrupt" });
+  });
 });

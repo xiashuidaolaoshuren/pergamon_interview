@@ -138,7 +138,11 @@ export async function extractCandidates(
   const transport =
     options.transport ?? createDefaultTransport(apiKey);
   const parsed = await requestStructuredJson(options.prompt, transport);
-  return extractionResponseSchema.parse(parsed);
+  try {
+    return extractionResponseSchema.parse(parsed);
+  } catch {
+    throw new GeminiError("malformed", "Gemini returned an invalid response.");
+  }
 }
 
 export async function interpretAnswer(
@@ -148,5 +152,9 @@ export async function interpretAnswer(
   const transport =
     options.transport ?? createDefaultTransport(apiKey);
   const parsed = await requestStructuredJson(options.prompt, transport);
-  return proposalSchema.parse(parsed);
+  try {
+    return proposalSchema.parse(parsed);
+  } catch {
+    throw new GeminiError("malformed", "Gemini returned an invalid response.");
+  }
 }

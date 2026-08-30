@@ -64,6 +64,20 @@ describe("extractCandidates", () => {
     expect(String(transport.mock.calls[1]?.[0])).toContain("schema repair");
   });
 
+  it("maps structurally invalid JSON to a malformed GeminiError", async () => {
+    const transport = transportReturning(JSON.stringify({ candidates: "nope" }));
+    await expect(
+      extractCandidates({
+        prompt: "extract",
+        transport,
+        apiKey: "test-key",
+      }),
+    ).rejects.toMatchObject({
+      name: "GeminiError",
+      code: "malformed",
+    });
+  });
+
   it("requires GEMINI_KEY for live calls", async () => {
     await expect(
       extractCandidates({
@@ -111,6 +125,20 @@ describe("interpretAnswer", () => {
 
     expect(result.proposals).toHaveLength(1);
     expect(result.proposals[0]?.fieldKey).toBe("importer-contact");
+  });
+
+  it("maps structurally invalid interpret JSON to a malformed GeminiError", async () => {
+    const transport = transportReturning(JSON.stringify({ proposals: "nope" }));
+    await expect(
+      interpretAnswer({
+        prompt: "interpret",
+        transport,
+        apiKey: "test-key",
+      }),
+    ).rejects.toMatchObject({
+      name: "GeminiError",
+      code: "malformed",
+    });
   });
 });
 

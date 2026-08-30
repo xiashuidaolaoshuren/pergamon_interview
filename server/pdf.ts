@@ -4,7 +4,8 @@ export type PdfExtractErrorCode =
   | "encrypted"
   | "image-only"
   | "empty"
-  | "unsupported";
+  | "unsupported"
+  | "corrupt";
 
 export class PdfExtractError extends Error {
   readonly code: PdfExtractErrorCode;
@@ -90,7 +91,10 @@ async function extractPdfPages(buffer: Buffer): Promise<ExtractedDocument["pages
         "The PDF is encrypted. Provide an unlocked copy.",
       );
     }
-    throw error;
+    throw new PdfExtractError(
+      "corrupt",
+      "The PDF could not be parsed. It may be corrupt or in an unsupported format.",
+    );
   }
 }
 
