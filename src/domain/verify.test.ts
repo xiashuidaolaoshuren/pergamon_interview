@@ -98,4 +98,34 @@ describe("verifyCitation verify", () => {
     expect(result?.page).toBe(3);
     expect(result?.quote).toBe("TARGET");
   });
+
+  it("returns null for an empty quote", () => {
+    const result = verifyCitation(
+      { documentId: "doc-1", page: 1, quote: "" },
+      "any page text",
+    );
+    expect(result).toBeNull();
+  });
+
+  it("returns null for a whitespace-only quote", () => {
+    const result = verifyCitation(
+      { documentId: "doc-1", page: 1, quote: "   " },
+      "any page text",
+    );
+    expect(result).toBeNull();
+  });
+
+  it("matches an ASCII-space quote against NBSP page text and captures a surrounding window", () => {
+    const nbspCitation: Citation = {
+      documentId: "doc-4",
+      page: 1,
+      quote: "a b",
+    };
+    const page = "prefix a\u00a0b suffix";
+    const result = verifyCitation(nbspCitation, page);
+    expect(result).not.toBeNull();
+    expect(result?.surroundingWindow.length).toBeGreaterThan(0);
+    expect(result?.surroundingWindow).toContain("a");
+    expect(result?.surroundingWindow).toContain("b");
+  });
 });

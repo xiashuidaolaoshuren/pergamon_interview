@@ -70,6 +70,8 @@ export interface DossierField {
   markers: ProvenanceMarker[];
   evidence: Evidence[];
   rejectedCandidates: RejectedCandidate[];
+  conflictCandidates: ConflictCandidate[];
+  adjudicatedLosers: ConflictCandidate[];
   resolutionHistory: ResolutionEvent[];
 }
 

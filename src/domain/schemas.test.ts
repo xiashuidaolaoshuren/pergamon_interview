@@ -42,6 +42,22 @@ describe("extractionResponseSchema", () => {
       extractionResponseSchema.parse({ candidates: [missingQuote] }),
     ).toThrow();
   });
+
+  it("rejects an empty quote", () => {
+    expect(() =>
+      extractionResponseSchema.parse({
+        candidates: [{ ...validCandidate, quote: "" }],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a whitespace-only quote", () => {
+    expect(() =>
+      extractionResponseSchema.parse({
+        candidates: [{ ...validCandidate, quote: "   " }],
+      }),
+    ).toThrow();
+  });
 });
 
 describe("extractionResponseSchema confidence", () => {
@@ -98,5 +114,14 @@ describe("proposalSchema", () => {
         ],
       }),
     ).toThrow();
+  });
+});
+
+describe("dossierSchema", () => {
+  it("rejects null and non-object dossier members", async () => {
+    const { dossierSchema } = await import("./schemas.js");
+
+    expect(dossierSchema.safeParse([null]).success).toBe(false);
+    expect(dossierSchema.safeParse(["nope"]).success).toBe(false);
   });
 });

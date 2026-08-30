@@ -1,12 +1,13 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
+import { loadEnvFile } from "./env.js";
 import { createApp } from "./http.js";
 
-const fixtureDir = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../fixtures/kettle",
-);
+const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+loadEnvFile(join(rootDir, ".env.local"));
+
+const fixtureDir = join(rootDir, "fixtures/kettle");
 
 const app = createApp({
   fixtureDir,

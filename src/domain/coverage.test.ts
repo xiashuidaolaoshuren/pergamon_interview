@@ -19,6 +19,8 @@ function dossier(
     markers: markers[def.key] ?? [],
     evidence: [],
     rejectedCandidates: [],
+    conflictCandidates: [],
+    adjudicatedLosers: [],
     resolutionHistory: [],
   }));
 }

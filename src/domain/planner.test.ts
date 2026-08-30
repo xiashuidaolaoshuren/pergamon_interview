@@ -35,12 +35,14 @@ function dossierField(
     markers: [],
     evidence: [],
     rejectedCandidates: [],
+    conflictCandidates: [],
+    adjudicatedLosers: [],
     resolutionHistory: [],
   };
 }
 
 function dossierWithStatuses(
-  entries: Array<[string, FieldStatus]> | Array<[string, FieldStatus, DossierField["tier"]]>,
+  entries: Array<[string, FieldStatus] | [string, FieldStatus, DossierField["tier"]]>,
 ): DossierField[] {
   const byKey = new Map(
     entries.map((entry) => {

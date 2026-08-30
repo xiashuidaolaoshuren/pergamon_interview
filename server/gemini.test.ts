@@ -3,7 +3,6 @@ import {
   extractCandidates,
   GeminiError,
   interpretAnswer,
-  type GeminiTransport,
 } from "./gemini.js";
 
 const validExtraction = JSON.stringify({
@@ -28,9 +27,9 @@ const validInterpret = JSON.stringify({
   ],
 });
 
-function transportReturning(...responses: string[]): GeminiTransport {
+function transportReturning(...responses: string[]) {
   const queue = [...responses];
-  return vi.fn(async () => {
+  return vi.fn(async (_prompt: string) => {
     const next = queue.shift();
     if (next === undefined) throw new Error("unexpected transport call");
     return next;
@@ -64,6 +63,20 @@ describe("extractCandidates", () => {
     expect(String(transport.mock.calls[1]?.[0])).toContain("schema repair");
   });
 
+  it("maps structurally invalid JSON to a malformed GeminiError", async () => {
+    const transport = transportReturning(JSON.stringify({ candidates: "nope" }));
+    await expect(
+      extractCandidates({
+        prompt: "extract",
+        transport,
+        apiKey: "test-key",
+      }),
+    ).rejects.toMatchObject({
+      name: "GeminiError",
+      code: "malformed",
+    });
+  });
+
   it("requires GEMINI_KEY for live calls", async () => {
     await expect(
       extractCandidates({
@@ -74,6 +87,24 @@ describe("extractCandidates", () => {
       code: "missing-key",
       envVar: "GEMINI_KEY",
     });
+  });
+
+  it("maps unknown transport failures to upstream", async () => {
+    const transport = vi.fn(async () => {
+      throw new Error("model overloaded");
+    });
+    await expect(
+      extractCandidates({ prompt: "extract", transport, apiKey: "k" }),
+    ).rejects.toMatchObject({ code: "upstream" });
+  });
+
+  it("maps HTTP 5xx transport failures to upstream", async () => {
+    const transport = vi.fn(async () => {
+      throw Object.assign(new Error("service unavailable"), { status: 503 });
+    });
+    await expect(
+      extractCandidates({ prompt: "extract", transport, apiKey: "k" }),
+    ).rejects.toMatchObject({ code: "upstream" });
   });
 
   it("maps quota, auth, and network failures to typed errors", async () => {
@@ -111,6 +142,20 @@ describe("interpretAnswer", () => {
 
     expect(result.proposals).toHaveLength(1);
     expect(result.proposals[0]?.fieldKey).toBe("importer-contact");
+  });
+
+  it("maps structurally invalid interpret JSON to a malformed GeminiError", async () => {
+    const transport = transportReturning(JSON.stringify({ proposals: "nope" }));
+    await expect(
+      interpretAnswer({
+        prompt: "interpret",
+        transport,
+        apiKey: "test-key",
+      }),
+    ).rejects.toMatchObject({
+      name: "GeminiError",
+      code: "malformed",
+    });
   });
 });
 

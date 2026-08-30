@@ -1,6 +1,6 @@
 import { KETTLE_FIELDS } from "./fields.js";
 import { normalizeValue } from "./normalize.js";
-import type { DossierField, Proposal, ResolutionEvent } from "./types.js";
+import type { ConflictCandidate, DossierField, Evidence, Proposal, ResolutionEvent } from "./types.js";
 
 export type ApplyEvent =
   | { type: "provide-answer"; fieldKey: string; value: unknown }
@@ -55,6 +55,47 @@ function applyProvideAnswer(
         status: "conflicting",
         originalValue: [field.originalValue, value],
         normalizedValue: [field.normalizedValue, normalized],
+        conflictCandidates: [
+          {
+            value: field.originalValue,
+            normalizedValue: field.normalizedValue,
+            citation: field.evidence[0],
+            source: "document",
+          },
+          {
+            value,
+            normalizedValue: normalized,
+            source: "user",
+          },
+        ],
+        resolutionHistory: [
+          ...field.resolutionHistory,
+          resolutionEvent("user-conflict", String(value)),
+        ],
+      };
+    }
+
+    if (field.status === "conflicting") {
+      const originalValues = Array.isArray(field.originalValue)
+        ? field.originalValue
+        : [field.originalValue];
+      const normalizedValues = Array.isArray(field.normalizedValue)
+        ? field.normalizedValue
+        : [field.normalizedValue];
+      const alreadyPresent = normalizedValues.some((existing) =>
+        normalizedEquals(existing, normalized),
+      );
+      if (alreadyPresent) return field;
+
+      return {
+        ...field,
+        status: "conflicting",
+        originalValue: [...originalValues, value],
+        normalizedValue: [...normalizedValues, normalized],
+        conflictCandidates: [
+          ...field.conflictCandidates,
+          { value, normalizedValue: normalized, source: "user" },
+        ],
         resolutionHistory: [
           ...field.resolutionHistory,
           resolutionEvent("user-conflict", String(value)),
@@ -67,6 +108,9 @@ function applyProvideAnswer(
       status: "user-provided",
       originalValue: value,
       normalizedValue: normalized,
+      evidence: [],
+      conflictCandidates: [],
+      adjudicatedLosers: [],
       resolutionHistory: [
         ...field.resolutionHistory,
         resolutionEvent("user-provided", String(value)),
@@ -86,6 +130,9 @@ function applyDeclareUnavailable(
     status: "missing",
     originalValue: null,
     normalizedValue: null,
+    evidence: [],
+    conflictCandidates: [],
+    adjudicatedLosers: [],
     markers: field.markers.includes("declaredUnavailable")
       ? field.markers
       : [...field.markers, "declaredUnavailable"],
@@ -94,6 +141,15 @@ function applyDeclareUnavailable(
       resolutionEvent("declared-unavailable"),
     ],
   }));
+}
+
+function winnerEvidence(winner: ConflictCandidate): Evidence[] {
+  if (winner.source !== "document" || !winner.citation) return [];
+  const citation = winner.citation;
+  if ("surroundingWindow" in citation) {
+    return [citation as Evidence];
+  }
+  return [{ ...citation, surroundingWindow: "" }];
 }
 
 function applyAdjudicate(
@@ -107,35 +163,32 @@ function applyAdjudicate(
   return updateField(dossier, fieldKey, (field) => {
     if (field.status !== "conflicting") return field;
 
-    const originalValues = Array.isArray(field.originalValue)
-      ? field.originalValue
-      : [field.originalValue];
-    const normalizedValues = Array.isArray(field.normalizedValue)
-      ? field.normalizedValue
-      : [field.normalizedValue];
     const selectedNormalized = normalizeValue(selectedValue, def.valueKind);
-
-    const selectedIndex = normalizedValues.findIndex((value) =>
-      normalizedEquals(value, selectedNormalized),
+    const winner = field.conflictCandidates.find((candidate) =>
+      normalizedEquals(candidate.normalizedValue, selectedNormalized),
     );
-    const winnerIndex = selectedIndex >= 0 ? selectedIndex : 0;
-    const loserIndex = winnerIndex === 0 ? 1 : 0;
-    const winnerValue = originalValues[winnerIndex] ?? selectedValue;
-    const loserValue = originalValues[loserIndex];
+    if (!winner) return field;
+
+    const losers = field.conflictCandidates.filter(
+      (candidate) => candidate !== winner,
+    );
 
     return {
       ...field,
       status: "confirmed",
-      originalValue: winnerValue,
-      normalizedValue: normalizedValues[winnerIndex] ?? selectedNormalized,
+      originalValue: winner.value,
+      normalizedValue: winner.normalizedValue,
       markers: field.markers.includes("adjudicated")
         ? field.markers
         : [...field.markers, "adjudicated"],
+      evidence: winnerEvidence(winner),
+      conflictCandidates: [],
+      adjudicatedLosers: losers,
       resolutionHistory: [
         ...field.resolutionHistory,
         resolutionEvent(
           "adjudicated",
-          loserValue === undefined ? undefined : String(loserValue),
+          losers.map((loser) => String(loser.value)).join(", ") || undefined,
         ),
       ],
     };

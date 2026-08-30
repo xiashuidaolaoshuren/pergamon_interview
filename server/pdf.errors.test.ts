@@ -28,4 +28,26 @@ describe("extractPages error mapping", () => {
       }),
     ).rejects.toMatchObject({ code: "image-only" });
   });
+
+  it("maps corrupt PDFs to a typed corrupt error", async () => {
+    await expect(
+      extractPages({
+        id: "corrupt",
+        filename: "corrupt.pdf",
+        mediaType: "application/pdf",
+        buffer: Buffer.from("not a pdf"),
+      }),
+    ).rejects.toMatchObject({ name: "PdfExtractError", code: "corrupt" });
+  });
+
+  it("dispatches on filename extension even when mediaType claims text/plain", async () => {
+    await expect(
+      extractPages({
+        id: "spoofed",
+        filename: "spec.pdf",
+        mediaType: "text/plain",
+        buffer: Buffer.from("%PDF-1.4\nbinary-garbage-here"),
+      }),
+    ).rejects.toMatchObject({ name: "PdfExtractError", code: "corrupt" });
+  });
 });

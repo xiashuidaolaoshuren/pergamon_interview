@@ -28,6 +28,17 @@ describe("validateIntakeUploads", () => {
     ).toContain("Unsupported file type");
 
     expect(
+      validateIntakeUploads([
+        {
+          id: "spoofed",
+          filename: "notes.docx",
+          mediaType: "application/pdf",
+          buffer: Buffer.from("x"),
+        },
+      ])?.message,
+    ).toContain("Unsupported file type");
+
+    expect(
       validateIntakeUploads(
         Array.from({ length: MAX_UPLOAD_COUNT + 1 }, (_, index) => ({
           id: `file-${index}`,

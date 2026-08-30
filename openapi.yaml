@@ -1,0 +1,559 @@
+openapi: 3.1.0
+info:
+  title: EvidenceReady HTTP API
+  version: 1.0.0
+  description: |
+    Backend contract for extraction and answer interpretation.
+
+    The server listens on `http://localhost:8787` by default (`PORT` overrides).
+    `GEMINI_KEY` is server-only and is never returned except as the `envVar`
+    field on a `missing-key` error.
+
+    `POST /api/interpret` returns proposals only; it never writes the dossier.
+  license:
+    name: UNLICENSED
+
+servers:
+  - url: http://localhost:8787
+    description: Local development (`npm run dev:server`)
+
+tags:
+  - name: extract
+    description: Document intake and dossier snapshot
+  - name: interpret
+    description: Propose field values from a user answer
+
+paths:
+  /api/extract:
+    post:
+      tags: [extract]
+      operationId: extract
+      summary: Extract a dossier snapshot from uploads or the kettle fixture
+      description: |
+        Accepts one of:
+
+        - JSON fixture request `{ source: "fixture", mode: "recorded" | "live" }`
+        - Multipart (or urlencoded) upload with 1–3 `.pdf` / `.txt` files,
+          each ≤ 10 MB, under the form field `files`
+
+        Recorded fixture mode does not require `GEMINI_KEY`. Live fixture and
+        upload modes do. Partial multi-document parse failures still return
+        200 with successful facts plus `failedSources`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FixtureExtractRequest"
+            examples:
+              recorded:
+                summary: Replay kettle fixture without Gemini
+                value:
+                  source: fixture
+                  mode: recorded
+              live:
+                summary: Live-extract the kettle fixture documents
+                value:
+                  source: fixture
+                  mode: live
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ExtractUploadRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/ExtractUploadRequest"
+      responses:
+        "200":
+          description: Dossier snapshot after extraction, verification, and reconciliation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractResponse"
+        "400":
+          description: Client or classified extraction failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                invalidIntake:
+                  summary: Wrong type, count, empty set, or wrong content type
+                  value:
+                    error:
+                      code: invalid-intake
+                      message: Unsupported file type for notes.docx. Use PDF or TXT.
+                invalidRequest:
+                  value:
+                    error:
+                      code: invalid-request
+                      message: Invalid extract request body.
+                missingKey:
+                  value:
+                    error:
+                      code: missing-key
+                      message: GEMINI_KEY is not configured. Use recorded extraction mode or set GEMINI_KEY.
+                      envVar: GEMINI_KEY
+                allSourcesFailed:
+                  value:
+                    error:
+                      code: all-sources-failed
+                      message: All uploaded sources failed to parse.
+                      failedSources:
+                        - id: blank
+                          filename: blank.pdf
+                          code: image-only
+                          message: No extractable text.
+                malformed:
+                  value:
+                    error:
+                      code: malformed
+                      message: Gemini returned an invalid response.
+                pdfExtract:
+                  value:
+                    error:
+                      code: image-only
+                      message: No extractable text.
+        "413":
+          description: Request body exceeds the intake payload limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: payload-too-large
+                  message: Request body too large.
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/GeminiUnavailable"
+
+  /api/interpret:
+    post:
+      tags: [interpret]
+      operationId: interpret
+      summary: Propose field values from a user answer
+      description: |
+        Sends `fieldKey`, `answerText`, and the current dossier to Gemini.
+        Returns proposals. Does not apply answers or mutate the dossier.
+
+        Structurally invalid Gemini JSON is returned as `rephrase` (400), not
+        `malformed`. Upstream Gemini faults are `gemini-unavailable` (503).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterpretRequest"
+            example:
+              fieldKey: importer-contact
+              answerText: Acme Imports GmbH in Berlin
+              dossier:
+                - key: importer-contact
+                  label: Importer or responsible-party contact
+                  group: Identity and Responsibility
+                  tier: essential
+                  valueKind: prose
+                  status: missing
+                  originalValue: null
+                  normalizedValue: null
+                  markers: []
+                  evidence: []
+                  rejectedCandidates: []
+                  conflictCandidates: []
+                  adjudicatedLosers: []
+                  resolutionHistory: []
+      responses:
+        "200":
+          description: Proposed field updates; dossier is unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterpretResponse"
+              example:
+                proposals:
+                  - fieldKey: importer-contact
+                    proposedValue: Acme Imports GmbH
+                    answerText: Acme Imports GmbH in Berlin
+        "400":
+          description: Invalid body, missing key, quota/auth/network, or uninterpretable answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                invalidRequest:
+                  value:
+                    error:
+                      code: invalid-request
+                      message: Invalid interpret request body.
+                rephrase:
+                  value:
+                    error:
+                      code: rephrase
+                      message: Could not interpret the answer. Please rephrase.
+                missingKey:
+                  value:
+                    error:
+                      code: missing-key
+                      message: GEMINI_KEY is not configured. Use recorded extraction mode or set GEMINI_KEY.
+                      envVar: GEMINI_KEY
+        "413":
+          description: Request body exceeds the intake payload limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: payload-too-large
+                  message: Request body too large.
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/GeminiUnavailable"
+
+components:
+  responses:
+    InternalError:
+      description: Unexpected server failure; JSON envelope, no stack or path leak
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: internal-error
+              message: Unexpected server error.
+    GeminiUnavailable:
+      description: Upstream Gemini transport or 5xx fault
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: gemini-unavailable
+              message: Gemini service is temporarily unavailable.
+
+  schemas:
+    FixtureExtractRequest:
+      type: object
+      additionalProperties: false
+      required: [source, mode]
+      properties:
+        source:
+          type: string
+          const: fixture
+        mode:
+          $ref: "#/components/schemas/ExtractionMode"
+
+    ExtractUploadRequest:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          minItems: 1
+          maxItems: 3
+          description: PDF or TXT files; filename extension is the parser dispatch key.
+          items:
+            type: string
+            format: binary
+            contentMediaType: application/octet-stream
+
+    ExtractResponse:
+      type: object
+      additionalProperties: false
+      required: [mode, dossier, rejected, coverage, counts]
+      properties:
+        mode:
+          $ref: "#/components/schemas/ExtractionMode"
+        dossier:
+          $ref: "#/components/schemas/Dossier"
+        rejected:
+          type: array
+          items:
+            $ref: "#/components/schemas/RejectedCandidate"
+        coverage:
+          $ref: "#/components/schemas/Coverage"
+        counts:
+          $ref: "#/components/schemas/PipelineCounts"
+        failedSources:
+          type: array
+          description: Present when some (not all) sources failed to parse.
+          items:
+            $ref: "#/components/schemas/FailedSource"
+
+    InterpretRequest:
+      type: object
+      additionalProperties: false
+      required: [fieldKey, answerText, dossier]
+      properties:
+        fieldKey:
+          type: string
+        answerText:
+          type: string
+        dossier:
+          $ref: "#/components/schemas/Dossier"
+
+    InterpretResponse:
+      type: object
+      additionalProperties: false
+      required: [proposals]
+      properties:
+        proposals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Proposal"
+
+    ExtractionMode:
+      type: string
+      enum: [recorded, live]
+
+    Coverage:
+      type: string
+      enum: [interview, insufficient]
+      description: Essential-field coverage after extraction (`interview` when ≥ 50% of essential fields are non-missing).
+
+    PipelineCounts:
+      type: object
+      additionalProperties: false
+      required: [extracted, rejected, conflicts, missing]
+      properties:
+        extracted:
+          type: integer
+          minimum: 0
+        rejected:
+          type: integer
+          minimum: 0
+        conflicts:
+          type: integer
+          minimum: 0
+        missing:
+          type: integer
+          minimum: 0
+
+    Dossier:
+      type: array
+      items:
+        $ref: "#/components/schemas/DossierField"
+
+    DossierField:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - label
+        - group
+        - tier
+        - valueKind
+        - status
+        - originalValue
+        - normalizedValue
+        - markers
+        - evidence
+        - rejectedCandidates
+        - resolutionHistory
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        group:
+          type: string
+        tier:
+          $ref: "#/components/schemas/FieldTier"
+        valueKind:
+          $ref: "#/components/schemas/ValueKind"
+        status:
+          $ref: "#/components/schemas/FieldStatus"
+        originalValue:
+          description: Unnormalized value; any JSON type, including null.
+        normalizedValue:
+          description: Normalized value; any JSON type, including null.
+        markers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProvenanceMarker"
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/Evidence"
+        rejectedCandidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/RejectedCandidate"
+        conflictCandidates:
+          type: array
+          description: Omitted members default to an empty array on interpret input.
+          items:
+            $ref: "#/components/schemas/ConflictCandidate"
+        adjudicatedLosers:
+          type: array
+          description: Omitted members default to an empty array on interpret input.
+          items:
+            $ref: "#/components/schemas/ConflictCandidate"
+        resolutionHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResolutionEvent"
+
+    FieldTier:
+      type: string
+      enum: [essential, supporting]
+
+    ValueKind:
+      type: string
+      enum: [scalar, list, prose]
+
+    FieldStatus:
+      type: string
+      enum: [confirmed, user-provided, unverified, conflicting, missing]
+
+    ProvenanceMarker:
+      type: string
+      enum: [adjudicated, declaredUnavailable]
+
+    Citation:
+      type: object
+      additionalProperties: false
+      required: [documentId, page, quote]
+      properties:
+        documentId:
+          type: string
+        page:
+          type: number
+        quote:
+          type: string
+
+    Evidence:
+      allOf:
+        - $ref: "#/components/schemas/Citation"
+        - type: object
+          additionalProperties: false
+          required: [surroundingWindow]
+          properties:
+            surroundingWindow:
+              type: string
+
+    RejectedCandidate:
+      type: object
+      additionalProperties: false
+      required: [fieldKey, value, citation, rejectionReason]
+      properties:
+        fieldKey:
+          type: string
+        value:
+          description: Rejected candidate value; any JSON type.
+        citation:
+          $ref: "#/components/schemas/Citation"
+        rejectionReason:
+          type: string
+
+    ConflictCandidate:
+      type: object
+      additionalProperties: false
+      required: [value, normalizedValue, source]
+      properties:
+        value:
+          description: Candidate value; any JSON type.
+        normalizedValue:
+          description: Normalized candidate value; any JSON type.
+        citation:
+          $ref: "#/components/schemas/Citation"
+        source:
+          type: string
+          enum: [document, user]
+
+    ResolutionEvent:
+      type: object
+      additionalProperties: false
+      required: [at, action]
+      properties:
+        at:
+          type: string
+        action:
+          type: string
+        detail:
+          type: string
+
+    Proposal:
+      type: object
+      additionalProperties: false
+      required: [fieldKey, proposedValue, answerText]
+      properties:
+        fieldKey:
+          type: string
+        proposedValue:
+          description: Proposed field value; any JSON type.
+        answerText:
+          type: string
+
+    FailedSource:
+      type: object
+      additionalProperties: false
+      required: [id, filename, code, message]
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        code:
+          $ref: "#/components/schemas/PdfExtractErrorCode"
+        message:
+          type: string
+
+    PdfExtractErrorCode:
+      type: string
+      enum: [encrypted, image-only, empty, unsupported, corrupt]
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+        envVar:
+          type: string
+          description: Present on `missing-key`; always `GEMINI_KEY`.
+        failedSources:
+          type: array
+          description: Present on `all-sources-failed`.
+          items:
+            $ref: "#/components/schemas/FailedSource"
+
+    ErrorCode:
+      type: string
+      description: |
+        HTTP `error.code` values. Gemini `upstream` is never returned as-is;
+        the HTTP layer maps it to `gemini-unavailable`.
+      enum:
+        - invalid-intake
+        - invalid-request
+        - payload-too-large
+        - missing-key
+        - quota
+        - auth
+        - network
+        - malformed
+        - rephrase
+        - gemini-unavailable
+        - all-sources-failed
+        - encrypted
+        - image-only
+        - empty
+        - unsupported
+        - corrupt
+        - internal-error

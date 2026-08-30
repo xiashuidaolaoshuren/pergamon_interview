@@ -4,7 +4,8 @@ export type PdfExtractErrorCode =
   | "encrypted"
   | "image-only"
   | "empty"
-  | "unsupported";
+  | "unsupported"
+  | "corrupt";
 
 export class PdfExtractError extends Error {
   readonly code: PdfExtractErrorCode;
@@ -30,18 +31,12 @@ export interface ExtractedDocument {
   pages: Array<{ pageNumber: number; text: string }>;
 }
 
-function isTxt(mediaType: string, filename: string): boolean {
-  return (
-    mediaType === "text/plain" ||
-    filename.toLowerCase().endsWith(".txt")
-  );
+function isTxt(filename: string): boolean {
+  return filename.toLowerCase().endsWith(".txt");
 }
 
-function isPdf(mediaType: string, filename: string): boolean {
-  return (
-    mediaType === "application/pdf" ||
-    filename.toLowerCase().endsWith(".pdf")
-  );
+function isPdf(filename: string): boolean {
+  return filename.toLowerCase().endsWith(".pdf");
 }
 
 function isWhitespaceOnly(text: string): boolean {
@@ -90,7 +85,10 @@ async function extractPdfPages(buffer: Buffer): Promise<ExtractedDocument["pages
         "The PDF is encrypted. Provide an unlocked copy.",
       );
     }
-    throw error;
+    throw new PdfExtractError(
+      "corrupt",
+      "The PDF could not be parsed. It may be corrupt or in an unsupported format.",
+    );
   }
 }
 
@@ -122,7 +120,7 @@ function extractTxtPages(buffer: Buffer): ExtractedDocument["pages"] {
 export async function extractPages(
   input: ExtractPagesInput,
 ): Promise<ExtractedDocument> {
-  if (isTxt(input.mediaType, input.filename)) {
+  if (isTxt(input.filename)) {
     return {
       id: input.id,
       filename: input.filename,
@@ -131,7 +129,7 @@ export async function extractPages(
     };
   }
 
-  if (isPdf(input.mediaType, input.filename)) {
+  if (isPdf(input.filename)) {
     return {
       id: input.id,
       filename: input.filename,

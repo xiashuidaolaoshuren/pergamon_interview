@@ -7,6 +7,18 @@ interface NormalizedText {
   origOffsets: number[];
 }
 
+function isWhitespace(ch: string): boolean {
+  return (
+    ch === " " ||
+    ch === "\t" ||
+    ch === "\n" ||
+    ch === "\r" ||
+    ch === "\f" ||
+    ch === "\v" ||
+    ch === "\u00a0"
+  );
+}
+
 function normalizeWithMap(text: string): NormalizedText {
   const normalized: string[] = [];
   const origOffsets: number[] = [];
@@ -15,14 +27,11 @@ function normalizeWithMap(text: string): NormalizedText {
   while (i < n) {
     const ch = text[i];
     if (ch === undefined) break;
-    const isWs = ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\f" || ch === "\v";
-    if (isWs) {
+    if (isWhitespace(ch)) {
       const runStart = i;
       while (i < n) {
         const c = text[i];
-        if (c === undefined) break;
-        const ws = c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f" || c === "\v";
-        if (!ws) break;
+        if (c === undefined || !isWhitespace(c)) break;
         i += 1;
       }
       normalized.push(" ");
@@ -45,7 +54,7 @@ function normalizeWithMap(text: string): NormalizedText {
 }
 
 function normalize(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  return normalizeWithMap(text).normalized;
 }
 
 export function captureWindow(
@@ -70,6 +79,7 @@ export function captureWindow(
 
 export function verifyCitation(citation: Citation, pageText: string): Evidence | null {
   const normQuote = normalize(citation.quote);
+  if (normQuote.length === 0) return null;
   const normPage = normalize(pageText);
   if (!normPage.includes(normQuote)) return null;
   return {
