@@ -39,4 +39,15 @@ describe("extractPages error mapping", () => {
       }),
     ).rejects.toMatchObject({ name: "PdfExtractError", code: "corrupt" });
   });
+
+  it("dispatches on filename extension even when mediaType claims text/plain", async () => {
+    await expect(
+      extractPages({
+        id: "spoofed",
+        filename: "spec.pdf",
+        mediaType: "text/plain",
+        buffer: Buffer.from("%PDF-1.4\nbinary-garbage-here"),
+      }),
+    ).rejects.toMatchObject({ name: "PdfExtractError", code: "corrupt" });
+  });
 });

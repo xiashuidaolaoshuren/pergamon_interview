@@ -111,6 +111,21 @@ describe("reconcileCandidates scalar", () => {
     expect(capacity.originalValue).toEqual(["1.5 L", "1.7 L"]);
     expect(capacity.normalizedValue).toEqual(["1.5 L", "1.7 L"]);
     expect(capacity.evidence).toEqual([first.citation, second.citation]);
+    expect(capacity.conflictCandidates).toEqual([
+      {
+        value: "1.5 L",
+        normalizedValue: "1.5 L",
+        citation: first.citation,
+        source: "document",
+      },
+      {
+        value: "1.7 L",
+        normalizedValue: "1.7 L",
+        citation: second.citation,
+        source: "document",
+      },
+    ]);
+    expect(capacity.adjudicatedLosers).toEqual([]);
   });
 
   it("confirms a scalar field when 2 verified values share a normalized form, merging evidence", () => {
@@ -205,5 +220,23 @@ describe("reconcileCandidates unverified", () => {
     expect(name.normalizedValue).toBe("Speedy Boil");
     expect(name.evidence).toEqual([]);
     expect(name.rejectedCandidates).toEqual([only]);
+  });
+
+  it("retains rejected candidates when a field also has verified evidence", () => {
+    const confirmed = verified("rated-power", "1850 W", {
+      quote: "Rated power: 1850 W",
+      documentId: "doc-a",
+    });
+    const dropped = rejected("rated-power", "2200 W", "2200 W");
+    const dossier = reconcileCandidates({
+      evidence: [confirmed],
+      rejected: [dropped],
+      fields: KETTLE_FIELDS,
+    });
+
+    const power = fieldOf(dossier, "rated-power");
+    expect(power.status).toBe("confirmed");
+    expect(power.originalValue).toBe("1850 W");
+    expect(power.rejectedCandidates).toEqual([dropped]);
   });
 });

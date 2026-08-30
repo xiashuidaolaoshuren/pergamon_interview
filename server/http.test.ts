@@ -1,15 +1,19 @@
 import { dirname, join } from "node:path";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { GeminiError } from "./gemini.js";
 import { createApp, MAX_UPLOAD_BYTES } from "./http.js";
+import type { DossierField } from "../src/domain/types.js";
+import type { RunExtractionInput, RunExtractionResult } from "./pipeline.js";
 
 const fixtureDir = join(
   dirname(fileURLToPath(import.meta.url)),
   "../fixtures/kettle",
 );
 
-function sampleDossier() {
+function sampleDossier(): DossierField[] {
   return [
     {
       key: "importer-contact",
@@ -23,10 +27,42 @@ function sampleDossier() {
       markers: [],
       evidence: [],
       rejectedCandidates: [],
+      conflictCandidates: [],
+      adjudicatedLosers: [],
       resolutionHistory: [],
     },
   ];
 }
+
+function liveExtractionResult(
+  overrides: Partial<RunExtractionResult> = {},
+): RunExtractionResult {
+  return {
+    mode: "live",
+    dossier: sampleDossier(),
+    rejected: [],
+    coverage: "interview",
+    counts: {
+      extracted: 0,
+      rejected: 0,
+      conflicts: 0,
+      missing: 1,
+    },
+    ...overrides,
+  };
+}
+
+type ExtractResponseBody = {
+  mode: string;
+  dossier: Array<{ key: string; status: string }>;
+  coverage: string;
+  counts: { rejected: number };
+  failedSources?: unknown[];
+};
+
+type InterpretResponseBody = {
+  proposals: unknown[];
+};
 
 describe("POST /api/extract recorded", () => {
   it("returns dossier snapshot without GEMINI_KEY", async () => {
@@ -40,7 +76,7 @@ describe("POST /api/extract recorded", () => {
     });
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as ExtractResponseBody;
     expect(body.mode).toBe("recorded");
     expect(body.dossier).toHaveLength(15);
     expect(body.coverage).toBe("interview");
@@ -237,7 +273,7 @@ describe("POST /api/interpret", () => {
     });
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as InterpretResponseBody;
     expect(body.proposals).toHaveLength(1);
     expect(dossier[0]?.status).toBe("missing");
     expect(interpretAnswerFn).toHaveBeenCalledOnce();
@@ -294,18 +330,10 @@ describe("POST /api/interpret", () => {
 
 describe("POST /api/extract multipart uploads", () => {
   it("passes all uploaded files to the pipeline", async () => {
-    const runExtractionFn = vi.fn(async () => ({
-      mode: "live" as const,
-      dossier: sampleDossier(),
-      rejected: [],
-      coverage: "interview" as const,
-      counts: {
-        extracted: 0,
-        rejected: 0,
-        conflicts: 0,
-        missing: 1,
-      },
-    }));
+    const runExtractionFn = vi.fn(
+      async (_input: RunExtractionInput): Promise<RunExtractionResult> =>
+        liveExtractionResult(),
+    );
     const app = createApp({ fixtureDir, runExtractionFn, apiKey: "test-key" });
 
     const form = new FormData();
@@ -333,18 +361,10 @@ describe("POST /api/extract multipart uploads", () => {
   });
 
   it("assigns unique ids when basenames collide across extensions", async () => {
-    const runExtractionFn = vi.fn(async () => ({
-      mode: "live" as const,
-      dossier: sampleDossier(),
-      rejected: [],
-      coverage: "interview" as const,
-      counts: {
-        extracted: 0,
-        rejected: 0,
-        conflicts: 0,
-        missing: 1,
-      },
-    }));
+    const runExtractionFn = vi.fn(
+      async (_input: RunExtractionInput): Promise<RunExtractionResult> =>
+        liveExtractionResult(),
+    );
     const app = createApp({ fixtureDir, runExtractionFn, apiKey: "test-key" });
 
     const form = new FormData();
@@ -366,33 +386,55 @@ describe("POST /api/extract multipart uploads", () => {
     const call = runExtractionFn.mock.calls[0]?.[0];
     expect(call?.uploads?.map((upload: { id: string; filename: string }) => upload.id)).toEqual([
       "supplier-spec",
-      "supplier-spec.pdf",
+      "supplier-spec-2",
     ]);
+  });
+
+  it("assigns basename-derived ids when filenames include path segments", async () => {
+    const runExtractionFn = vi.fn(
+      async (_input: RunExtractionInput): Promise<RunExtractionResult> =>
+        liveExtractionResult(),
+    );
+    const app = createApp({ fixtureDir, runExtractionFn, apiKey: "test-key" });
+
+    const form = new FormData();
+    form.append(
+      "files",
+      new File(["pdf"], "dir/evil.pdf", { type: "application/pdf" }),
+    );
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(200);
+    const call = runExtractionFn.mock.calls[0]?.[0];
+    expect(call?.uploads?.map((upload: { id: string }) => upload.id)).toEqual(["evil"]);
   });
 });
 
 describe("POST /api/extract partial multi-document failure", () => {
   it("includes failedSources from the pipeline in the HTTP response", async () => {
-    const runExtractionFn = vi.fn(async () => ({
-      mode: "live" as const,
-      dossier: sampleDossier(),
-      rejected: [],
-      coverage: "interview" as const,
-      counts: {
-        extracted: 1,
-        rejected: 0,
-        conflicts: 0,
-        missing: 1,
-      },
-      failedSources: [
-        {
-          id: "blank",
-          filename: "blank.pdf",
-          code: "image-only",
-          message: "No extractable text.",
-        },
-      ],
-    }));
+    const runExtractionFn = vi.fn(
+      async (_input: RunExtractionInput): Promise<RunExtractionResult> =>
+        liveExtractionResult({
+          counts: {
+            extracted: 1,
+            rejected: 0,
+            conflicts: 0,
+            missing: 1,
+          },
+          failedSources: [
+            {
+              id: "blank",
+              filename: "blank.pdf",
+              code: "image-only",
+              message: "No extractable text.",
+            },
+          ],
+        }),
+    );
     const app = createApp({ fixtureDir, runExtractionFn });
 
     const form = new FormData();
@@ -407,7 +449,7 @@ describe("POST /api/extract partial multi-document failure", () => {
     });
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as ExtractResponseBody;
     expect(body.failedSources).toEqual([
       expect.objectContaining({
         filename: "blank.pdf",
@@ -415,5 +457,92 @@ describe("POST /api/extract partial multi-document failure", () => {
       }),
     ]);
     expect(runExtractionFn).toHaveBeenCalledOnce();
+  });
+});
+
+describe("POST /api/interpret dossier validation", () => {
+  it("returns invalid-request for malformed dossier members", async () => {
+    const interpretAnswerFn = vi.fn();
+    const app = createApp({
+      fixtureDir,
+      apiKey: "test-key",
+      interpretAnswerFn,
+    });
+
+    const response = await app.request("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldKey: "capacity",
+        answerText: "1.7 L",
+        dossier: [null],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: { code: "invalid-request" },
+    });
+    expect(interpretAnswerFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("HTTP error envelope", () => {
+  it("returns JSON internal-error when extraction throws unexpectedly", async () => {
+    const app = createApp({
+      fixtureDir,
+      runExtractionFn: vi.fn(async () => {
+        throw new Error("boom");
+      }),
+    });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "recorded" }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).toMatch(/json/);
+    expect(await response.json()).toMatchObject({
+      error: { code: "internal-error", message: "Unexpected server error." },
+    });
+  });
+
+  it("returns JSON internal-error when recorded fixture JSON is corrupt", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "evidenceready-"));
+    writeFileSync(join(dir, "recorded-extraction.json"), "{");
+    writeFileSync(join(dir, "recorded-pages.json"), "{}");
+    const app = createApp({ fixtureDir: dir });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "recorded" }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).toMatch(/json/);
+    expect(await response.json()).toMatchObject({
+      error: { code: "internal-error" },
+    });
+  });
+
+  it("returns JSON internal-error when the fixture directory is missing", async () => {
+    const app = createApp({
+      fixtureDir: join(tmpdir(), "evidenceready-missing-fixtures"),
+    });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "recorded" }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).toMatch(/json/);
+    expect(await response.json()).toMatchObject({
+      error: { code: "internal-error" },
+    });
   });
 });

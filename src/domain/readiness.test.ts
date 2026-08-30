@@ -20,6 +20,8 @@ function dossierField(
     markers: [],
     evidence: [],
     rejectedCandidates: [],
+    conflictCandidates: [],
+    adjudicatedLosers: [],
     resolutionHistory: [],
     ...overrides,
   };

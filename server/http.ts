@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { interpretPrompt } from "../src/domain/prompt.js";
+import { dossierSchema } from "../src/domain/schemas.js";
 import type { DossierField } from "../src/domain/types.js";
 import {
   AllSourcesFailedError,
@@ -59,7 +60,7 @@ const fixtureExtractSchema = z.object({
 const interpretRequestSchema = z.object({
   fieldKey: z.string(),
   answerText: z.string(),
-  dossier: z.array(z.custom<DossierField>()),
+  dossier: dossierSchema,
 });
 
 function jsonError(
@@ -89,9 +90,6 @@ function assignUniqueUploadIds(uploads: PipelineUpload[]): PipelineUpload[] {
   return uploads.map((upload) => {
     const stem = uploadIdFromFilename(upload.filename);
     let id = stem;
-    if (used.has(id)) {
-      id = upload.filename;
-    }
     if (used.has(id)) {
       let suffix = 2;
       while (used.has(`${stem}-${suffix}`)) {
@@ -149,6 +147,18 @@ export function createApp(deps: HttpDeps) {
   const run = deps.runExtractionFn ?? runExtraction;
   const interpret = deps.interpretAnswerFn ?? defaultInterpretAnswer;
 
+  app.onError((_error, c) =>
+    c.json(
+      {
+        error: {
+          code: "internal-error",
+          message: "Unexpected server error.",
+        },
+      },
+      500,
+    ),
+  );
+
   app.use(
     "*",
     bodyLimit({
@@ -166,7 +176,16 @@ export function createApp(deps: HttpDeps) {
 
     try {
       if (contentType.includes("application/json")) {
-        const body = fixtureExtractSchema.parse(await c.req.json());
+        let raw: unknown;
+        try {
+          raw = await c.req.json();
+        } catch (error) {
+          if (error instanceof SyntaxError) {
+            return jsonError("invalid-request", "Invalid extract request body.");
+          }
+          throw error;
+        }
+        const body = fixtureExtractSchema.parse(raw);
 
         if (body.mode === "recorded") {
           const result = await run({
@@ -229,7 +248,7 @@ export function createApp(deps: HttpDeps) {
       if (error instanceof PdfExtractError) {
         return jsonError(error.code, error.message);
       }
-      if (error instanceof z.ZodError || error instanceof SyntaxError) {
+      if (error instanceof z.ZodError) {
         return jsonError("invalid-request", "Invalid extract request body.");
       }
       throw error;

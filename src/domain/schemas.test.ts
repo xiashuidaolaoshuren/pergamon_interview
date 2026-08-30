@@ -116,3 +116,12 @@ describe("proposalSchema", () => {
     ).toThrow();
   });
 });
+
+describe("dossierSchema", () => {
+  it("rejects null and non-object dossier members", async () => {
+    const { dossierSchema } = await import("./schemas.js");
+
+    expect(dossierSchema.safeParse([null]).success).toBe(false);
+    expect(dossierSchema.safeParse(["nope"]).success).toBe(false);
+  });
+});

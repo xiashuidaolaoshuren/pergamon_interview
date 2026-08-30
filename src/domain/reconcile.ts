@@ -2,6 +2,7 @@ import type { FieldDefinition } from "./fields.js";
 import { normalizeValue } from "./normalize.js";
 import type {
   Candidate,
+  ConflictCandidate,
   DossierField,
   Evidence,
   RejectedCandidate,
@@ -31,6 +32,8 @@ function emptyField(
     markers: [],
     evidence: [],
     rejectedCandidates: [],
+    conflictCandidates: [],
+    adjudicatedLosers: [],
     resolutionHistory: [],
   };
 }
@@ -78,11 +81,19 @@ function reconcileScalar(
     };
   }
 
+  const conflictCandidates: ConflictCandidate[] = verified.map((item, index) => ({
+    value: item.value,
+    normalizedValue: normalized[index],
+    citation: item.citation,
+    source: "document",
+  }));
+
   return {
     ...emptyField(def, "conflicting"),
     originalValue: verified.map((item) => item.value),
     normalizedValue: normalized,
     evidence,
+    conflictCandidates,
   };
 }
 
@@ -138,9 +149,15 @@ export function reconcileCandidates({
     const rejectedForField = rejectedByField.get(def.key) ?? [];
 
     if (verified.length > 0) {
-      if (def.valueKind === "scalar") return reconcileScalar(def, verified);
-      if (def.valueKind === "list") return reconcileList(def, verified);
-      if (def.valueKind === "prose") return reconcileProse(def, verified);
+      const field =
+        def.valueKind === "scalar"
+          ? reconcileScalar(def, verified)
+          : def.valueKind === "list"
+            ? reconcileList(def, verified)
+            : reconcileProse(def, verified);
+      return rejectedForField.length > 0
+        ? { ...field, rejectedCandidates: rejectedForField }
+        : field;
     }
 
     if (rejectedForField.length > 0) {

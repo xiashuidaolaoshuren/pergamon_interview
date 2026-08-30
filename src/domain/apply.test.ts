@@ -21,6 +21,8 @@ function dossierField(
     markers: [],
     evidence: [],
     rejectedCandidates: [],
+    conflictCandidates: [],
+    adjudicatedLosers: [],
     resolutionHistory: [],
     ...overrides,
   };
@@ -38,6 +40,28 @@ const sampleEvidence: Evidence = {
   quote: "1.5 L",
   surroundingWindow: "...Capacity: 1.5 L...",
 };
+
+const manualEvidence: Evidence = {
+  documentId: "draft-manual",
+  page: 3,
+  quote: "1.7 L",
+  surroundingWindow: "...Capacity: 1.7 L...",
+};
+
+const capacityConflictCandidates = [
+  {
+    value: "1.5 L",
+    normalizedValue: "1.5 L",
+    citation: sampleEvidence,
+    source: "document" as const,
+  },
+  {
+    value: "1.7 L",
+    normalizedValue: "1.7 L",
+    citation: manualEvidence,
+    source: "document" as const,
+  },
+];
 
 describe("parseAnswer", () => {
   it("trims whitespace, treats empty as declare-unavailable, and non-empty as provide-answer", () => {
@@ -84,11 +108,18 @@ describe("applyEvent provide-answer", () => {
       citation: { documentId: "supplier-spec", page: 2, quote: "2200 W" },
       rejectionReason: "quote not on page",
     };
+    const staleEvidence: Evidence = {
+      documentId: "supplier-spec",
+      page: 2,
+      quote: "1850 W",
+      surroundingWindow: "...1850 W...",
+    };
     const dossier = dossierWith(
       dossierField("rated-power", {
         status: "unverified",
         originalValue: "2200 W",
         normalizedValue: "2200 W",
+        evidence: [staleEvidence],
         rejectedCandidates: [rejected],
       }),
     );
@@ -105,6 +136,8 @@ describe("applyEvent provide-answer", () => {
     expect(field.normalizedValue).toBe("1850 W");
     expect(field.rejectedCandidates).toEqual([rejected]);
     expect(field.evidence).toEqual([]);
+    expect(field.conflictCandidates).toEqual([]);
+    expect(field.adjudicatedLosers).toEqual([]);
   });
 
   it("creates a user-vs-document conflict when answering a confirmed field", () => {
@@ -128,6 +161,19 @@ describe("applyEvent provide-answer", () => {
     expect(field.originalValue).toEqual(["1.5 L", "1.7 L"]);
     expect(field.normalizedValue).toEqual(["1.5 L", "1.7 L"]);
     expect(field.evidence).toEqual([sampleEvidence]);
+    expect(field.conflictCandidates).toEqual([
+      {
+        value: "1.5 L",
+        normalizedValue: "1.5 L",
+        citation: sampleEvidence,
+        source: "document",
+      },
+      {
+        value: "1.7 L",
+        normalizedValue: "1.7 L",
+        source: "user",
+      },
+    ]);
     expect(field.resolutionHistory.at(-1)?.action).toBe("user-conflict");
   });
 
@@ -138,6 +184,7 @@ describe("applyEvent provide-answer", () => {
         originalValue: ["1.5 L", "1.7 L"],
         normalizedValue: ["1.5 L", "1.7 L"],
         evidence: [sampleEvidence],
+        conflictCandidates: capacityConflictCandidates,
       }),
     );
 
@@ -151,6 +198,10 @@ describe("applyEvent provide-answer", () => {
     expect(field.status).toBe("conflicting");
     expect(field.originalValue).toEqual(["1.5 L", "1.7 L", "2.0 L"]);
     expect(field.normalizedValue).toEqual(["1.5 L", "1.7 L", "2 L"]);
+    expect(field.conflictCandidates).toEqual([
+      ...capacityConflictCandidates,
+      { value: "2.0 L", normalizedValue: "2 L", source: "user" },
+    ]);
     expect(field.resolutionHistory.at(-1)?.action).toBe("user-conflict");
     expect(authoringReadiness(result.dossier).verdict).toBe("needs-review");
   });
@@ -163,7 +214,8 @@ describe("applyEvent adjudicate", () => {
         status: "conflicting",
         originalValue: ["1.5 L", "1.7 L"],
         normalizedValue: ["1.5 L", "1.7 L"],
-        evidence: [sampleEvidence],
+        evidence: [sampleEvidence, manualEvidence],
+        conflictCandidates: capacityConflictCandidates,
       }),
     );
 
@@ -178,8 +230,69 @@ describe("applyEvent adjudicate", () => {
     expect(field.originalValue).toBe("1.5 L");
     expect(field.normalizedValue).toBe("1.5 L");
     expect(field.markers).toContain("adjudicated");
+    expect(field.conflictCandidates).toEqual([]);
+    expect(field.adjudicatedLosers).toEqual([capacityConflictCandidates[1]]);
+    expect(field.evidence).toEqual([sampleEvidence]);
     expect(field.resolutionHistory.at(-1)?.action).toBe("adjudicated");
     expect(field.resolutionHistory.at(-1)?.detail).toContain("1.7 L");
+  });
+
+  it("leaves a conflicting field unchanged when the selected value is not a candidate", () => {
+    const dossier = dossierWith(
+      dossierField("capacity", {
+        status: "conflicting",
+        originalValue: ["1.5 L", "1.7 L"],
+        normalizedValue: ["1.5 L", "1.7 L"],
+        evidence: [sampleEvidence, manualEvidence],
+        conflictCandidates: capacityConflictCandidates,
+      }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "adjudicate",
+      fieldKey: "capacity",
+      selectedValue: "9 L",
+    });
+
+    const field = result.dossier.find((item) => item.key === "capacity")!;
+    expect(field.status).toBe("conflicting");
+    expect(field.originalValue).toEqual(["1.5 L", "1.7 L"]);
+    expect(field.markers).not.toContain("adjudicated");
+    expect(field.conflictCandidates).toEqual(capacityConflictCandidates);
+    expect(field.adjudicatedLosers).toEqual([]);
+  });
+
+  it("retains every non-winner with provenance when adjudicating a three-way conflict", () => {
+    const userCandidate = {
+      value: "2.0 L",
+      normalizedValue: "2 L",
+      source: "user" as const,
+    };
+    const candidates = [...capacityConflictCandidates, userCandidate];
+    const dossier = dossierWith(
+      dossierField("capacity", {
+        status: "conflicting",
+        originalValue: ["1.5 L", "1.7 L", "2.0 L"],
+        normalizedValue: ["1.5 L", "1.7 L", "2 L"],
+        evidence: [sampleEvidence, manualEvidence],
+        conflictCandidates: candidates,
+      }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "adjudicate",
+      fieldKey: "capacity",
+      selectedValue: "2.0 L",
+    });
+
+    const field = result.dossier.find((item) => item.key === "capacity")!;
+    expect(field.status).toBe("confirmed");
+    expect(field.originalValue).toBe("2.0 L");
+    expect(field.normalizedValue).toBe("2 L");
+    expect(field.markers).toContain("adjudicated");
+    expect(field.conflictCandidates).toEqual([]);
+    expect(field.adjudicatedLosers).toEqual(capacityConflictCandidates);
+    expect(field.evidence).toEqual([]);
   });
 });
 
@@ -198,6 +311,33 @@ describe("applyEvent declare-unavailable", () => {
     expect(field.status).toBe("missing");
     expect(field.markers).toContain("declaredUnavailable");
     expect(authoringReadiness(result.dossier).verdict).toBe("needs-review");
+  });
+
+  it("clears supporting evidence and conflict state when declaring a field unavailable", () => {
+    const dossier = dossierWith(
+      dossierField("capacity", {
+        status: "conflicting",
+        originalValue: ["1.5 L", "1.7 L"],
+        normalizedValue: ["1.5 L", "1.7 L"],
+        evidence: [sampleEvidence, manualEvidence],
+        conflictCandidates: capacityConflictCandidates,
+        adjudicatedLosers: [capacityConflictCandidates[0]!],
+      }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "declare-unavailable",
+      fieldKey: "capacity",
+    });
+
+    const field = result.dossier.find((item) => item.key === "capacity")!;
+    expect(field.status).toBe("missing");
+    expect(field.originalValue).toBeNull();
+    expect(field.normalizedValue).toBeNull();
+    expect(field.evidence).toEqual([]);
+    expect(field.conflictCandidates).toEqual([]);
+    expect(field.adjudicatedLosers).toEqual([]);
+    expect(field.markers).toContain("declaredUnavailable");
   });
 });
 

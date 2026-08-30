@@ -3,7 +3,6 @@ import {
   extractCandidates,
   GeminiError,
   interpretAnswer,
-  type GeminiTransport,
 } from "./gemini.js";
 
 const validExtraction = JSON.stringify({
@@ -28,9 +27,9 @@ const validInterpret = JSON.stringify({
   ],
 });
 
-function transportReturning(...responses: string[]): GeminiTransport {
+function transportReturning(...responses: string[]) {
   const queue = [...responses];
-  return vi.fn(async () => {
+  return vi.fn(async (_prompt: string) => {
     const next = queue.shift();
     if (next === undefined) throw new Error("unexpected transport call");
     return next;
