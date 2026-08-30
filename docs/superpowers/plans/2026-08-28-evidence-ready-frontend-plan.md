@@ -93,7 +93,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T1 — Vite, Tailwind v4, shadcn
 
-- [ ] **Do:** Scaffold the React SPA on the existing package: Vite, Tailwind v4, shadcn init, `/api` proxy, `dev` script alongside existing `dev:server`. Keep `npx vitest run` covering domain and server.
+- [X] **Do:** Scaffold the React SPA on the existing package: Vite, Tailwind v4, shadcn init, `/api` proxy, `dev` script alongside existing `dev:server`. Keep `npx vitest run` covering domain and server.
 - **Blocked by:** —
 - **Plan mode:** medium
 - **TDD suitable:** no
@@ -102,7 +102,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T2 — Tokens and chrome
 
-- [ ] **Do:** Bind `DESIGN.md` color/type/spacing tokens. App chrome: EvidenceReady, HK-1750 kettle after intake, mode badge, sticky topnav, footer disclaimer. Accent budget: eyebrow + primary CTA only.
+- [X] **Do:** Bind `DESIGN.md` color/type/spacing tokens. App chrome: EvidenceReady, HK-1750 kettle after intake, mode badge, sticky topnav, footer disclaimer. Accent budget: eyebrow + primary CTA only.
 - **Blocked by:** T1
 - **Plan mode:** skip
 - **TDD suitable:** no
