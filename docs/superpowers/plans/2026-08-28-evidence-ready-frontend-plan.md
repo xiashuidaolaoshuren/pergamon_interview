@@ -119,7 +119,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T4 — Intake
 
-- [ ] **Do:** Bundled kettle CTA with recorded/live radios; upload path with PDF/TXT, 10 MB, no-OCR, Gemini privacy copy. Submit recorded/live bundled via `POST /api/extract` JSON fixture body; uploads via multipart `files`. Parse JSON error envelope (including `missing-key`).
+- [X] **Do:** Bundled kettle CTA with recorded/live radios; upload path with PDF/TXT, 10 MB, no-OCR, Gemini privacy copy. Submit recorded/live bundled via `POST /api/extract` JSON fixture body; uploads via multipart `files`. Parse JSON error envelope (including `missing-key`).
 - **Blocked by:** T2, T3
 - **Plan mode:** medium
 - **TDD suitable:** partial
