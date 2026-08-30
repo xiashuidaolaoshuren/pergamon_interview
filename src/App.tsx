@@ -1,11 +1,48 @@
-import { useState } from "react";
+import { useEffect, useReducer } from "react";
 import { Button } from "@/components/ui/button";
 import { ModeBadge } from "@/components/ModeBadge";
-import type { ExtractionMode } from "@/domain/types";
+import {
+  appReducer,
+  initialAppState,
+  type AppState,
+} from "@/app-state";
+import { clearSession, loadSession, saveSession } from "@/session";
+import type { StoredSession } from "@/session";
+
+function appStateFromSession(session: StoredSession): AppState {
+  return {
+    ...initialAppState,
+    phase: session.interview.phase,
+    mode: session.mode,
+    dossier: session.dossier,
+    rejected: session.rejected,
+    interview: session.interview,
+  };
+}
+
+function createInitialState(): AppState {
+  const session = loadSession();
+  return session ? appStateFromSession(session) : initialAppState;
+}
 
 export default function App() {
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [mode] = useState<ExtractionMode>("recorded");
+  const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
+  const postIntake = state.phase !== "intake";
+
+  useEffect(() => {
+    if (state.phase === "intake") {
+      clearSession();
+      return;
+    }
+
+    saveSession({
+      dossier: state.dossier,
+      rejected: state.rejected,
+      mode: state.mode,
+      interview: state.interview,
+      excerpts: state.dossier.flatMap((field) => field.evidence),
+    });
+  }, [state]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -13,18 +50,16 @@ export default function App() {
         <div className="page-wrap topnav-inner">
           <span className="logo">
             EvidenceReady
-            {sessionStarted ? (
-              <span> · HK-1750 kettle</span>
-            ) : null}
+            {postIntake ? <span> · HK-1750 kettle</span> : null}
           </span>
           <div className="flex items-center gap-[var(--gap-sm)]">
-            {sessionStarted ? <ModeBadge mode={mode} /> : null}
-            {sessionStarted ? (
+            {postIntake ? <ModeBadge mode={state.mode} /> : null}
+            {postIntake ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setSessionStarted(false)}
+                onClick={() => dispatch({ type: "restart" })}
               >
                 Restart session
               </Button>
@@ -44,7 +79,10 @@ export default function App() {
           interviews you about whatever conflicts or is still missing.
         </p>
         <div className="mt-[var(--gap-lg)]">
-          <Button type="button" onClick={() => setSessionStarted(true)}>
+          <Button
+            type="button"
+            onClick={() => dispatch({ type: "start-extract", mode: "recorded" })}
+          >
             Load the bundled example
           </Button>
         </div>

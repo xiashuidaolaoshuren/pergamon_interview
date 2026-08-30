@@ -111,7 +111,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T3 — Session and phase machine
 
-- [ ] **Do:** Persist full dossier (including `conflictCandidates` and `adjudicatedLosers`) plus excerpts and `InterviewState`; quota fallback; phase reducer intake → extracting → insufficient | interview → report. Extraction mode stored and shown on every post-intake screen.
+- [X] **Do:** Persist full dossier (including `conflictCandidates` and `adjudicatedLosers`) plus excerpts and `InterviewState`; quota fallback; phase reducer intake → extracting → insufficient | interview → report. Extraction mode stored and shown on every post-intake screen.
 - **Blocked by:** T1
 - **Plan mode:** high
 - **TDD suitable:** yes
