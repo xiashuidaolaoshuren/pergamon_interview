@@ -18,7 +18,7 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
   const fileInputId = useId();
 
   return (
-    <section className="screen-pad">
+    <section className="screen-pad screen-enter">
       <p className="eyebrow">Evidence intake · Product documentation</p>
       <h1 className="title-measure">
         Know what your documents can prove before authoring begins.

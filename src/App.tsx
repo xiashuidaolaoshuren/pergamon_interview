@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ModeBadge } from "@/components/ModeBadge";
 import {
@@ -38,6 +38,7 @@ function createInitialState(): AppState {
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
   const lastRequest = useRef<LastExtractRequest | null>(null);
+  const [animationSession, setAnimationSession] = useState(0);
   const postIntake = state.phase !== "intake";
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function App() {
   const startExtraction = useCallback(
     async (mode: ExtractionMode, files?: File[]) => {
       lastRequest.current = { mode, files };
+      setAnimationSession((session) => session + 1);
       dispatch({ type: "start-extract", mode });
 
       try {
@@ -164,6 +166,7 @@ export default function App() {
             counts={state.counts}
             failedSources={state.failedSources}
             dossier={state.dossier}
+            animationSession={animationSession}
             onRetry={handleRetryExtraction}
             onUseRecorded={handleUseRecorded}
             onBackToIntake={() => dispatch({ type: "restart" })}

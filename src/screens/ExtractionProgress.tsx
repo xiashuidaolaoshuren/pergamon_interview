@@ -3,6 +3,11 @@ import type { ExtractionCounts, FailedSource } from "@/app-state.js";
 import { essentialKeys } from "@/domain/fields.js";
 import type { DossierField, ExtractionMode } from "@/domain/types.js";
 import { errorRecoveryAction } from "./extraction-errors.js";
+import {
+  getStepClassName,
+  getStepMark,
+  useExtractionStepAnimation,
+} from "./extraction-steps.js";
 
 export interface ExtractionProgressProps {
   mode: ExtractionMode;
@@ -11,6 +16,7 @@ export interface ExtractionProgressProps {
   counts: ExtractionCounts | null;
   failedSources: FailedSource[] | undefined;
   dossier: DossierField[];
+  animationSession: number;
   onRetry: () => void;
   onUseRecorded: () => void;
   onBackToIntake: () => void;
@@ -20,10 +26,10 @@ export interface ExtractionProgressProps {
 const RECORDED_STEPS = [
   "Read 2 documents · 5 pages, page boundaries preserved",
   "Replaying recorded extraction — no model call, no API key",
-  "Validated candidates against the dossier schema",
-  "Verified each cited quote on its named page",
+  "Validated 13 candidates against the dossier schema",
+  "Verified each cited quote on its named page — 1 citation rejected, retained for display",
   "Normalized values by value kind · reconciled into dossier state",
-  "Essential-coverage check",
+  "Essential-coverage check passed — interview can open",
 ];
 
 const LIVE_STEPS = [
@@ -67,18 +73,26 @@ export function ExtractionProgress({
   counts,
   failedSources,
   dossier,
+  animationSession,
   onRetry,
   onUseRecorded,
   onBackToIntake,
   onOpenInterview,
 }: ExtractionProgressProps) {
   const steps = mode === "recorded" ? RECORDED_STEPS : LIVE_STEPS;
-  const allDone = outcome === "succeeded" || outcome === "failed";
+  const { tickCount, showOutcome } = useExtractionStepAnimation(
+    steps.length,
+    outcome,
+    animationSession,
+  );
+  const skipAnimation =
+    outcome !== "working" && (showOutcome || tickCount > steps.length);
   const recovery =
     outcome === "failed" && error ? errorRecoveryAction(error.code) : null;
+  const revealOutcome = showOutcome && outcome !== "working";
 
   return (
-    <section className="screen-pad">
+    <section className="screen-pad screen-enter">
       <div className="mx-auto max-w-[860px]">
         <p className="eyebrow">
           {modeLabel(mode)} · HK-1750 kettle
@@ -93,15 +107,22 @@ export function ExtractionProgress({
           {steps.map((label, index) => (
             <div
               key={label}
-              className={`step ${allDone ? "done" : index === 0 ? "" : "pending"}`}
+              className={getStepClassName(
+                index,
+                tickCount,
+                steps.length,
+                skipAnimation,
+              )}
             >
-              <span className="step-mark">{allDone ? "✓" : "·"}</span>
+              <span className="step-mark">
+                {getStepMark(index, tickCount, steps.length, skipAnimation)}
+              </span>
               <span>{label}</span>
             </div>
           ))}
         </div>
 
-        {outcome === "failed" && error && recovery === "missing-key" ? (
+        {revealOutcome && outcome === "failed" && error && recovery === "missing-key" ? (
           <div
             className="card mt-[var(--gap-md)]"
             style={{
@@ -131,7 +152,7 @@ export function ExtractionProgress({
           </div>
         ) : null}
 
-        {outcome === "failed" && error && recovery !== "missing-key" ? (
+        {revealOutcome && outcome === "failed" && error && recovery !== "missing-key" ? (
           <div
             className="card mt-[var(--gap-md)]"
             style={{
@@ -155,9 +176,12 @@ export function ExtractionProgress({
           </div>
         ) : null}
 
-        {outcome === "succeeded" && counts ? (
+        {revealOutcome && outcome === "succeeded" && counts ? (
           <div className="mt-[var(--gap-lg)]">
-            <div className="grid grid-cols-2 gap-[var(--gap-md)] sm:grid-cols-4">
+            <div
+              className="grid gap-[var(--gap-md)]"
+              style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
+            >
               {SUMMARY_STATS.map(({ key, label }) => (
                 <div key={key} className="stat-cell">
                   <div className="stat-num num">{counts[key]}</div>

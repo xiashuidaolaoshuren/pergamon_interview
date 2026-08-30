@@ -128,7 +128,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T5 — Extraction progress and insufficient evidence
 
-- [ ] **Do:** Observable pipeline + `counts` + retry from JSON `{ error.code }`. `coverage === "insufficient"` opens insufficient (add-document / continue-anyway) — do not auto-open interview. Show `failedSources` on partial success. Do not display coverage as a percentage.
+- [X] **Do:** Observable pipeline + `counts` + retry from JSON `{ error.code }`. `coverage === "insufficient"` opens insufficient (add-document / continue-anyway) — do not auto-open interview. Show `failedSources` on partial success. Do not display coverage as a percentage.
 - **Blocked by:** T4
 - **Plan mode:** medium
 - **TDD suitable:** partial

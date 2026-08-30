@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExtractionProgress } from "./ExtractionProgress.js";
@@ -14,6 +14,128 @@ const defaultHandlers = {
 describe("ExtractionProgress", () => {
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
+  });
+
+  function renderWorking(mode: "recorded" | "live" = "recorded") {
+    return render(
+      <ExtractionProgress
+        mode={mode}
+        outcome="working"
+        error={null}
+        counts={null}
+        failedSources={undefined}
+        dossier={[]}
+        animationSession={1}
+        onRetry={vi.fn()}
+        onUseRecorded={vi.fn()}
+        onBackToIntake={vi.fn()}
+        onOpenInterview={vi.fn()}
+      />,
+    );
+  }
+
+  function stepElements(): HTMLElement[] {
+    return Array.from(document.querySelectorAll(".step"));
+  }
+
+  it("starts all steps pending, then activates the first after 350ms while working", async () => {
+    vi.useFakeTimers();
+    renderWorking();
+
+    const steps = stepElements();
+    expect(steps.length).toBeGreaterThan(1);
+    for (const step of steps) {
+      expect(step).toHaveClass("pending");
+    }
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    const activeSteps = stepElements();
+    expect(activeSteps[0]).not.toHaveClass("pending");
+    expect(activeSteps[0]).not.toHaveClass("done");
+    for (const step of activeSteps.slice(1)) {
+      expect(step).toHaveClass("pending");
+    }
+  });
+
+  it("marks the first step done and activates the second after 480ms", async () => {
+    vi.useFakeTimers();
+    renderWorking();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+      await vi.advanceTimersByTimeAsync(480);
+    });
+
+    const steps = stepElements();
+    expect(steps[0]).toHaveClass("done");
+    expect(steps[0]?.querySelector(".step-mark")?.textContent).toBe("✓");
+    expect(steps[1]).not.toHaveClass("pending");
+    expect(steps[1]).not.toHaveClass("done");
+  });
+
+  it("defers summary until step ticks finish plus 420ms after early success", async () => {
+    vi.useFakeTimers();
+    const counts = {
+      extracted: 13,
+      rejected: 1,
+      conflicts: 1,
+      missing: 3,
+    };
+    const handlers = {
+      onRetry: vi.fn(),
+      onUseRecorded: vi.fn(),
+      onBackToIntake: vi.fn(),
+      onOpenInterview: vi.fn(),
+    };
+
+    const { rerender } = render(
+      <ExtractionProgress
+        mode="recorded"
+        outcome="working"
+        error={null}
+        counts={null}
+        failedSources={undefined}
+        dossier={[]}
+        animationSession={1}
+        {...handlers}
+      />,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+
+    rerender(
+      <ExtractionProgress
+        mode="recorded"
+        outcome="succeeded"
+        error={null}
+        counts={counts}
+        failedSources={undefined}
+        dossier={[]}
+        animationSession={1}
+        {...handlers}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /open the interview/i }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6 * 480);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(420);
+    });
+
+    expect(
+      screen.getByRole("button", { name: /open the interview/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows missing-key card with env var setup copy, Retry live, and Use recorded", async () => {
@@ -33,6 +155,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
+        animationSession={0}
         onRetry={onRetry}
         onUseRecorded={onUseRecorded}
         onBackToIntake={vi.fn()}
@@ -67,6 +190,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
+        animationSession={0}
         onRetry={onRetry}
         onUseRecorded={vi.fn()}
         onBackToIntake={vi.fn()}
@@ -94,6 +218,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
+        animationSession={0}
         onRetry={vi.fn()}
         onUseRecorded={vi.fn()}
         onBackToIntake={onBackToIntake}
@@ -165,6 +290,7 @@ describe("ExtractionProgress", () => {
             resolutionHistory: [],
           },
         ]}
+        animationSession={0}
         onRetry={vi.fn()}
         onUseRecorded={vi.fn()}
         onBackToIntake={vi.fn()}

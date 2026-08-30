@@ -55,7 +55,7 @@ export function InsufficientEvidence({
   const threshold = essentialThresholdCount();
 
   return (
-    <section className="screen-pad">
+    <section className="screen-pad screen-enter">
       <div className="mx-auto max-w-[860px]">
         <p className="eyebrow">Extraction outcome · Low essential coverage</p>
         <h2>
