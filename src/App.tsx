@@ -117,7 +117,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="page-wrap flex flex-1 flex-col py-[var(--gap-xl)]">
+      <main className="page-wrap flex flex-1 flex-col">
         {state.phase === "intake" ? (
           <Intake
             onStartBundled={handleStartBundled}
@@ -129,7 +129,7 @@ export default function App() {
           <section className="screen-pad">
             <p className="eyebrow">Extracting dossier</p>
             <h2>Extracting and verifying the dossier</h2>
-            <p className="lead mt-[var(--gap-sm)]">
+            <p className="lead">
               Every candidate must name a document, a page, and an exact quote.
             </p>
             {state.error ? (

@@ -20,10 +20,10 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
   return (
     <section className="screen-pad">
       <p className="eyebrow">Evidence intake · Product documentation</p>
-      <h1 className="max-w-[18ch]">
+      <h1 className="title-measure">
         Know what your documents can prove before authoring begins.
       </h1>
-      <p className="lead mt-[var(--gap-md)]">
+      <p className="lead">
         EvidenceReady extracts a fixed product dossier from your source
         documents, verifies every citation against the page it names, and
         interviews you about whatever conflicts or is still missing.
@@ -32,7 +32,7 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
       <div className="grid-2 mt-[var(--gap-xl)] items-start">
         <div className="card stack">
           <div>
-            <h3 className="text-[var(--fs-h3)] font-semibold">
+            <h3>
               Bundled example · HK-1750 electric kettle
             </h3>
             <p className="note mt-[6px]">
@@ -102,7 +102,7 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
 
         <div className="card stack">
           <div>
-            <h3 className="text-[var(--fs-h3)] font-semibold">
+            <h3>
               Upload your own documents
             </h3>
             <p className="note mt-[6px]">Uploads always run live extraction.</p>
