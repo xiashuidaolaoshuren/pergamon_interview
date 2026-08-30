@@ -126,6 +126,14 @@ function loadFixtureUploads(fixtureDir: string): PipelineUpload[] {
 }
 
 function mapGeminiError(error: GeminiError): Response {
+  if (error.code === "upstream") {
+    return jsonError(
+      "gemini-unavailable",
+      "Gemini service is temporarily unavailable.",
+      {},
+      503,
+    );
+  }
   return jsonError(error.code, error.message, {
     envVar: error.envVar,
   });

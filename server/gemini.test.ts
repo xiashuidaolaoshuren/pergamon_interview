@@ -89,6 +89,24 @@ describe("extractCandidates", () => {
     });
   });
 
+  it("maps unknown transport failures to upstream", async () => {
+    const transport = vi.fn(async () => {
+      throw new Error("model overloaded");
+    });
+    await expect(
+      extractCandidates({ prompt: "extract", transport, apiKey: "k" }),
+    ).rejects.toMatchObject({ code: "upstream" });
+  });
+
+  it("maps HTTP 5xx transport failures to upstream", async () => {
+    const transport = vi.fn(async () => {
+      throw Object.assign(new Error("service unavailable"), { status: 503 });
+    });
+    await expect(
+      extractCandidates({ prompt: "extract", transport, apiKey: "k" }),
+    ).rejects.toMatchObject({ code: "upstream" });
+  });
+
   it("maps quota, auth, and network failures to typed errors", async () => {
     const quota = vi.fn(async () => {
       throw Object.assign(new Error("quota exceeded"), { status: 429 });

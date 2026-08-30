@@ -244,6 +244,29 @@ describe("POST /api/extract schema failure", () => {
   });
 });
 
+describe("POST /api/extract upstream failure", () => {
+  it("returns gemini-unavailable when the transport fails unexpectedly", async () => {
+    const app = createApp({
+      fixtureDir,
+      apiKey: "test-key",
+      transport: vi.fn(async () => {
+        throw new Error("model overloaded");
+      }),
+    });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "live" }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      error: { code: "gemini-unavailable" },
+    });
+  });
+});
+
 describe("POST /api/interpret", () => {
   it("returns proposals without writing the dossier", async () => {
     const interpretAnswerFn = vi.fn(async () => ({
@@ -324,6 +347,31 @@ describe("POST /api/interpret", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       error: { code: "rephrase" },
+    });
+  });
+
+  it("returns gemini-unavailable when interpretation hits an upstream fault", async () => {
+    const app = createApp({
+      fixtureDir,
+      apiKey: "test-key",
+      interpretAnswerFn: vi.fn(async () => {
+        throw new GeminiError("upstream", "Gemini service request failed.");
+      }),
+    });
+
+    const response = await app.request("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldKey: "importer-contact",
+        answerText: "Acme Imports GmbH in Berlin",
+        dossier: sampleDossier(),
+      }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      error: { code: "gemini-unavailable" },
     });
   });
 });

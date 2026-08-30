@@ -13,7 +13,8 @@ export type GeminiErrorCode =
   | "quota"
   | "auth"
   | "network"
-  | "malformed";
+  | "malformed"
+  | "upstream";
 
 export class GeminiError extends Error {
   readonly code: GeminiErrorCode;
@@ -73,11 +74,11 @@ function mapTransportError(error: unknown): GeminiError {
   if (message.includes("fetch failed") || message.includes("network")) {
     return new GeminiError("network", "Gemini network request failed.");
   }
+  if (status !== undefined && status >= 500) {
+    return new GeminiError("upstream", "Gemini service request failed.");
+  }
 
-  return new GeminiError(
-    "malformed",
-    error instanceof Error ? error.message : "Gemini request failed.",
-  );
+  return new GeminiError("upstream", "Gemini service request failed.");
 }
 
 async function callTransport(
