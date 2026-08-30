@@ -425,3 +425,72 @@ h2 + .lead {
 .stack > * + * {
   margin-top: var(--gap-md);
 }
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.step {
+  display: flex;
+  gap: var(--gap-sm);
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.step:last-child {
+  border-bottom: 0;
+}
+
+.step .step-mark {
+  width: 20px;
+  flex: none;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.step.done .step-mark {
+  color: var(--st-confirmed);
+}
+
+.step.pending {
+  opacity: 0.45;
+}
+
+.stat-cell .stat-num {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.stat-cell .stat-label {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ds-table th,
+.ds-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.ds-table th {
+  color: var(--muted);
+  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

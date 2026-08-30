@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ModeBadge } from "@/components/ModeBadge";
 import {
@@ -8,9 +8,16 @@ import {
 } from "@/app-state";
 import { ApiError, extractFixture, extractUpload } from "@/api";
 import type { ExtractionMode } from "@/domain/types.js";
+import { ExtractionProgress } from "@/screens/ExtractionProgress";
+import { InsufficientEvidence } from "@/screens/InsufficientEvidence";
 import { Intake } from "@/screens/Intake";
 import { clearSession, loadSession, saveSession } from "@/session";
 import type { StoredSession } from "@/session";
+
+interface LastExtractRequest {
+  mode: ExtractionMode;
+  files?: File[];
+}
 
 function appStateFromSession(session: StoredSession): AppState {
   return {
@@ -30,6 +37,7 @@ function createInitialState(): AppState {
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
+  const lastRequest = useRef<LastExtractRequest | null>(null);
   const postIntake = state.phase !== "intake";
 
   useEffect(() => {
@@ -49,6 +57,7 @@ export default function App() {
 
   const startExtraction = useCallback(
     async (mode: ExtractionMode, files?: File[]) => {
+      lastRequest.current = { mode, files };
       dispatch({ type: "start-extract", mode });
 
       try {
@@ -72,12 +81,28 @@ export default function App() {
             : new ApiError("network", "Network request failed.");
         dispatch({
           type: "extract-failure",
-          error: { code: apiError.code, message: apiError.message },
+          error: {
+            code: apiError.code,
+            message: apiError.message,
+            envVar: apiError.envVar,
+          },
         });
       }
     },
     [],
   );
+
+  const handleRetryExtraction = useCallback(() => {
+    const request = lastRequest.current;
+    if (!request) {
+      return;
+    }
+    void startExtraction(request.mode, request.files);
+  }, [startExtraction]);
+
+  const handleUseRecorded = useCallback(() => {
+    void startExtraction("recorded");
+  }, [startExtraction]);
 
   const handleStartBundled = useCallback(
     (mode: ExtractionMode) => {
@@ -125,21 +150,34 @@ export default function App() {
           />
         ) : null}
 
-        {state.phase === "extracting" ? (
-          <section className="screen-pad">
-            <p className="eyebrow">Extracting dossier</p>
-            <h2>Extracting and verifying the dossier</h2>
-            <p className="lead">
-              Every candidate must name a document, a page, and an exact quote.
-            </p>
-            {state.error ? (
-              <p className="note mt-[var(--gap-md)] text-[var(--st-conflict)]">
-                {state.error.message}
-              </p>
-            ) : (
-              <p className="note mt-[var(--gap-md)]">Working…</p>
-            )}
-          </section>
+        {state.phase === "extracting" || state.phase === "extracted" ? (
+          <ExtractionProgress
+            mode={state.mode}
+            outcome={
+              state.phase === "extracted"
+                ? "succeeded"
+                : state.error
+                  ? "failed"
+                  : "working"
+            }
+            error={state.error}
+            counts={state.counts}
+            failedSources={state.failedSources}
+            dossier={state.dossier}
+            onRetry={handleRetryExtraction}
+            onUseRecorded={handleUseRecorded}
+            onBackToIntake={() => dispatch({ type: "restart" })}
+            onOpenInterview={() => dispatch({ type: "open-interview" })}
+          />
+        ) : null}
+
+        {state.phase === "insufficient" ? (
+          <InsufficientEvidence
+            dossier={state.dossier}
+            failedSources={state.failedSources}
+            onAddDocument={() => dispatch({ type: "restart" })}
+            onContinueAnyway={() => dispatch({ type: "continue-anyway" })}
+          />
         ) : null}
       </main>
 

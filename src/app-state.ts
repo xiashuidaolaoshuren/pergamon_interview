@@ -8,7 +8,7 @@ import type {
   RejectedCandidate,
 } from "./domain/types.js";
 
-export type AppPhase = InterviewPhase;
+export type AppPhase = InterviewPhase | "extracted";
 
 export interface FailedSource {
   id: string;
@@ -32,13 +32,14 @@ export interface AppState {
   counts: ExtractionCounts | null;
   failedSources: FailedSource[] | undefined;
   interview: InterviewState;
-  error: { code: string; message: string } | null;
+  error: { code: string; message: string; envVar?: string } | null;
 }
 
 export type AppAction =
   | { type: "start-extract"; mode: ExtractionMode }
   | { type: "extract-success"; coverage: "interview" | "insufficient"; dossier: DossierField[]; rejected: RejectedCandidate[]; counts: ExtractionCounts; failedSources?: FailedSource[]; mode: ExtractionMode }
-  | { type: "extract-failure"; error: { code: string; message: string } }
+  | { type: "extract-failure"; error: { code: string; message: string; envVar?: string } }
+  | { type: "open-interview" }
   | { type: "continue-anyway" }
   | { type: "answer"; event: ApplyEvent }
   | { type: "finish" }
@@ -90,7 +91,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     };
     return {
       ...state,
-      phase: action.coverage,
+      phase: action.coverage === "interview" ? "extracted" : action.coverage,
       mode: action.mode,
       dossier: action.dossier,
       rejected: action.rejected,
@@ -105,6 +106,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     return {
       ...state,
       error: action.error,
+    };
+  }
+
+  if (action.type === "open-interview") {
+    return {
+      ...state,
+      phase: "interview",
+      interview: {
+        ...state.interview,
+        phase: "interview",
+      },
     };
   }
 
