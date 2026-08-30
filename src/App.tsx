@@ -10,6 +10,7 @@ import { ApiError, extractFixture, extractUpload } from "@/api";
 import type { ExtractionMode } from "@/domain/types.js";
 import { ExtractionProgress } from "@/screens/ExtractionProgress";
 import { InsufficientEvidence } from "@/screens/InsufficientEvidence";
+import { InterviewWorkspace } from "@/screens/InterviewWorkspace";
 import { Intake } from "@/screens/Intake";
 import { clearSession, loadSession, saveSession } from "@/session";
 import type { StoredSession } from "@/session";
@@ -181,6 +182,34 @@ export default function App() {
             onAddDocument={() => dispatch({ type: "restart" })}
             onContinueAnyway={() => dispatch({ type: "continue-anyway" })}
           />
+        ) : null}
+
+        {state.phase === "interview" ? (
+          <InterviewWorkspace
+            dossier={state.dossier}
+            interview={state.interview}
+            onAnswer={(event) => dispatch({ type: "answer", event })}
+            onLeaveUnresolved={(fieldKey) =>
+              dispatch({ type: "leave-unresolved", fieldKey })
+            }
+            onContinuePastBudget={() =>
+              dispatch({ type: "continue-past-budget" })
+            }
+            onFinish={() => dispatch({ type: "finish" })}
+          />
+        ) : null}
+
+        {state.phase === "report" ? (
+          <section className="screen-pad screen-enter">
+            <div className="mx-auto max-w-[860px]">
+              <p className="eyebrow">Readiness report · HK-1750 kettle</p>
+              <h2>Report screen — implemented in T7</h2>
+              <p className="lead">
+                The interview completed. Readiness report rendering is the next
+                subtask.
+              </p>
+            </div>
+          </section>
         ) : null}
       </main>
 

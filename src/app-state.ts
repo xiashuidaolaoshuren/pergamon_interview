@@ -1,5 +1,5 @@
 import { applyEvent, type ApplyEvent } from "./domain/apply.js";
-import { nextQuestion, shouldPause } from "./domain/planner.js";
+import { nextQuestion } from "./domain/planner.js";
 import type {
   DossierField,
   ExtractionMode,
@@ -42,6 +42,8 @@ export type AppAction =
   | { type: "open-interview" }
   | { type: "continue-anyway" }
   | { type: "answer"; event: ApplyEvent }
+  | { type: "leave-unresolved"; fieldKey: string }
+  | { type: "continue-past-budget" }
   | { type: "finish" }
   | { type: "restart" };
 
@@ -66,6 +68,38 @@ export const initialAppState: AppState = {
   interview: initialInterviewState,
   error: null,
 };
+
+function advanceInterview(
+  state: AppState,
+  dossier: DossierField[],
+  interview: InterviewState,
+): AppState {
+  const question = nextQuestion(dossier, interview);
+  if (!question) {
+    return {
+      ...state,
+      phase: "report",
+      dossier,
+      interview: {
+        ...interview,
+        phase: "report",
+        currentQuestionFieldKey: null,
+        completionReason: "resolved",
+      },
+    };
+  }
+
+  return {
+    ...state,
+    phase: "interview",
+    dossier,
+    interview: {
+      ...interview,
+      phase: "interview",
+      currentQuestionFieldKey: question.fieldKey,
+    },
+  };
+}
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   if (action.type === "start-extract") {
@@ -110,23 +144,33 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "open-interview") {
+    const interview: InterviewState = {
+      ...state.interview,
+      phase: "interview",
+    };
+    const question = nextQuestion(state.dossier, interview);
     return {
       ...state,
       phase: "interview",
       interview: {
-        ...state.interview,
-        phase: "interview",
+        ...interview,
+        currentQuestionFieldKey: question?.fieldKey ?? null,
       },
     };
   }
 
   if (action.type === "continue-anyway") {
+    const interview: InterviewState = {
+      ...state.interview,
+      phase: "interview",
+    };
+    const question = nextQuestion(state.dossier, interview);
     return {
       ...state,
       phase: "interview",
       interview: {
-        ...state.interview,
-        phase: "interview",
+        ...interview,
+        currentQuestionFieldKey: question?.fieldKey ?? null,
       },
     };
   }
@@ -171,42 +215,31 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       questionCount: state.interview.questionCount + 1,
     };
 
-    const question = nextQuestion(dossier, interview);
-    if (!question) {
-      return {
-        ...state,
-        phase: "report",
-        dossier,
-        interview: {
-          ...interview,
-          phase: "report",
-          currentQuestionFieldKey: null,
-          completionReason: "resolved",
-        },
-      };
-    }
+    return advanceInterview(state, dossier, interview);
+  }
 
-    if (shouldPause(interview)) {
-      return {
-        ...state,
-        phase: "interview",
-        dossier,
-        interview: {
-          ...interview,
-          phase: "interview",
-          currentQuestionFieldKey: question.fieldKey,
-        },
-      };
-    }
+  if (action.type === "leave-unresolved") {
+    const askedFieldKeys = state.interview.askedFieldKeys.includes(
+      action.fieldKey,
+    )
+      ? state.interview.askedFieldKeys
+      : [...state.interview.askedFieldKeys, action.fieldKey];
 
+    const interview: InterviewState = {
+      ...state.interview,
+      askedFieldKeys,
+      questionCount: state.interview.questionCount + 1,
+    };
+
+    return advanceInterview(state, state.dossier, interview);
+  }
+
+  if (action.type === "continue-past-budget") {
     return {
       ...state,
-      phase: "interview",
-      dossier,
       interview: {
-        ...interview,
-        phase: "interview",
-        currentQuestionFieldKey: question.fieldKey,
+        ...state.interview,
+        continuePastBudget: true,
       },
     };
   }
