@@ -129,7 +129,7 @@ export function InterviewWorkspace({
           </div>
           <div className="row">
             <span className="meta">
-              {interview.answeredFieldKeys.length} answered ·{" "}
+              {interview.questionCount} answered ·{" "}
               {unresolvedEssentialCount(dossier)} essential unresolved
             </span>
             <Button type="button" variant="secondary" size="sm" onClick={onFinish}>
@@ -176,6 +176,7 @@ export function InterviewWorkspace({
             <div className="card px-[22px] py-[18px]">
               <DossierPanel
                 dossier={dossier}
+                flashKey={flashKey ?? undefined}
                 onOpenSource={openEvidence}
                 onOpenRejected={openRejected}
               />

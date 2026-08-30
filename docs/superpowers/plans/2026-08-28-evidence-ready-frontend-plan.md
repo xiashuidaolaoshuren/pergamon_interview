@@ -137,7 +137,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T6 — Interview workspace
 
-- [ ] **Do:** Guided split. Question shapes from `nextQuestion`. Conflict options from `conflictCandidates`; adjudicate only listed values (unmatched apply is a no-op). Leave-unresolved updates `askedFieldKeys` only. Missing unknown → `declare-unavailable`. Confirming unverified → user-provided via `provide-answer`. Source drawer, proposal confirmation (`apply-proposals` after accept), budget pause via `shouldPause`. Dossier read-only with status chips and markers.
+- [X] **Do:** Guided split. Question shapes from `nextQuestion`. Conflict options from `conflictCandidates`; adjudicate only listed values (unmatched apply is a no-op). Leave-unresolved updates `askedFieldKeys` only. Missing unknown → `declare-unavailable`. Confirming unverified → user-provided via `provide-answer`. Source drawer, proposal confirmation (`apply-proposals` after accept), budget pause via `shouldPause`. Dossier read-only with status chips and markers.
 - **Blocked by:** T5
 - **Plan mode:** high
 - **TDD suitable:** partial

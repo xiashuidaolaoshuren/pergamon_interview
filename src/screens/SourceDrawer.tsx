@@ -51,7 +51,7 @@ export function SourceDrawer({
         aria-hidden={!open}
       >
         <div className="row-between">
-          <span className="pill pill-mode">{kind}</span>
+          <span className="pill">{kind}</span>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             Close ✕
           </Button>

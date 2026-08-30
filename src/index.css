@@ -694,6 +694,34 @@ h2 + .lead {
   margin-top: 4px;
 }
 
+.d-row .d-value-unverified {
+  color: var(--muted);
+}
+
+.d-row .conflict-sep {
+  color: var(--st-conflict);
+}
+
+.d-row.flash {
+  animation: flash 1.4s ease;
+}
+
+@keyframes flash {
+  0%,
+  100% {
+    background: transparent;
+  }
+  18% {
+    background: color-mix(in oklch, var(--st-confirmed) 16%, transparent);
+  }
+  36% {
+    background: transparent;
+  }
+  54% {
+    background: color-mix(in oklch, var(--st-confirmed) 10%, transparent);
+  }
+}
+
 .d-row .d-sub {
   font-size: 12px;
   color: var(--muted);

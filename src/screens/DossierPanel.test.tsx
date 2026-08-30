@@ -72,6 +72,44 @@ describe("DossierPanel", () => {
     expect(screen.getByText("Conflicting")).toBeInTheDocument();
   });
 
+  it("applies flash class to the matching dossier row", () => {
+    render(
+      <DossierPanel
+        dossier={[
+          field("product-name", "Product name", {
+            status: "confirmed",
+            originalValue: "AromaSteam Electric Kettle",
+            normalizedValue: "AromaSteam Electric Kettle",
+          }),
+          field("capacity", "Capacity", {
+            group: "Electrical and Physical Information",
+            status: "conflicting",
+            originalValue: ["1.5 L", "1.7 L"],
+            normalizedValue: ["1.5 L", "1.7 L"],
+            conflictCandidates: [
+              {
+                value: "1.5 L",
+                normalizedValue: "1.5 L",
+                source: "document",
+              },
+              {
+                value: "1.7 L",
+                normalizedValue: "1.7 L",
+                source: "document",
+              },
+            ],
+          }),
+        ]}
+        flashKey="capacity"
+        onOpenSource={vi.fn()}
+        onOpenRejected={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByText("Capacity").closest(".d-row") as HTMLElement;
+    expect(row.classList.contains("flash")).toBe(true);
+  });
+
   it("never renders a conflicting field as confirmed", () => {
     render(
       <DossierPanel

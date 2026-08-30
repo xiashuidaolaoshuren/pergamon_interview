@@ -2,6 +2,7 @@ import type { DossierField, Evidence, FieldStatus } from "@/domain/types.js";
 
 export interface DossierPanelProps {
   dossier: DossierField[];
+  flashKey?: string;
   onOpenSource: (evidence: Evidence, label: string) => void;
   onOpenRejected: (fieldKey: string) => void;
 }
@@ -22,15 +23,16 @@ const STATUS_PILL: Record<FieldStatus, string> = {
   missing: "pill-missing",
 };
 
-function formatValue(field: DossierField): string {
+function formatScalarValue(field: DossierField): string {
   const value = field.normalizedValue ?? field.originalValue;
-  if (Array.isArray(value)) {
-    return value.map(String).join(" ↮ ");
-  }
   if (value === null || value === undefined) {
     return "";
   }
   return String(value);
+}
+
+function shortDocLabel(documentId: string): string {
+  return documentId.replace(/^HK-1750_/, "").replace(/\.pdf$/, "");
 }
 
 function groupOrder(dossier: DossierField[]): string[] {
@@ -47,20 +49,29 @@ function groupOrder(dossier: DossierField[]): string[] {
 
 export function DossierPanel({
   dossier,
+  flashKey,
   onOpenSource,
   onOpenRejected,
 }: DossierPanelProps) {
   const groups = groupOrder(dossier);
 
   return (
-    <div className="dossier">
+    <>
       {groups.map((group) => (
         <div key={group} className="dossier-group">
           <span className="meta">{group}</span>
           {dossier
             .filter((field) => field.group === group)
-            .map((field) => (
-              <div key={field.key} className="d-row">
+            .map((field) => {
+              const conflictValues = Array.isArray(field.normalizedValue)
+                ? field.normalizedValue.map(String)
+                : null;
+
+              return (
+              <div
+                key={field.key}
+                className={`d-row${flashKey === field.key ? " flash" : ""}`}
+              >
                 <div className="d-head">
                   <span className="d-label">
                     {field.label}
@@ -75,7 +86,7 @@ export function DossierPanel({
                 {(field.status === "confirmed" ||
                   field.status === "user-provided") && (
                   <>
-                    <div className="d-value">{formatValue(field)}</div>
+                    <div className="d-value">{formatScalarValue(field)}</div>
                     {field.markers.includes("adjudicated") ? (
                       <div className="d-sub">
                         <span className="tag">Adjudicated</span> losing candidate
@@ -96,7 +107,8 @@ export function DossierPanel({
                             className="src-link"
                             onClick={() => onOpenSource(evidence, field.label)}
                           >
-                            {evidence.documentId} p.{evidence.page}
+                            {shortDocLabel(evidence.documentId)} p.
+                            {evidence.page}
                           </button>
                         ))}
                       </div>
@@ -105,7 +117,19 @@ export function DossierPanel({
                 )}
                 {field.status === "conflicting" ? (
                   <>
-                    <div className="d-value">{formatValue(field)}</div>
+                    <div className="d-value d-value-conflict">
+                      {conflictValues?.map((value, index) => (
+                        <span key={index}>
+                          {index > 0 ? (
+                            <span className="conflict-sep" aria-hidden="true">
+                              {" "}
+                              ↮{" "}
+                            </span>
+                          ) : null}
+                          {value}
+                        </span>
+                      ))}
+                    </div>
                     <div className="d-sub">
                       unadjudicated conflict — asked as a question, never
                       auto-resolved
@@ -126,7 +150,9 @@ export function DossierPanel({
                 ) : null}
                 {field.status === "unverified" ? (
                   <>
-                    <div className="d-value">{formatValue(field)}</div>
+                    <div className="d-value d-value-unverified">
+                      {formatScalarValue(field)}
+                    </div>
                     {field.rejectedCandidates.length > 0 ? (
                       <div className="d-sub">
                         <button
@@ -141,9 +167,10 @@ export function DossierPanel({
                   </>
                 ) : null}
               </div>
-            ))}
+              );
+            })}
         </div>
       ))}
-    </div>
+    </>
   );
 }

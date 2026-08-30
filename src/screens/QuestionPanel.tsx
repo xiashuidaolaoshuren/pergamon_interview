@@ -5,6 +5,7 @@ import { parseAnswer } from "@/domain/apply.js";
 import { KETTLE_FIELDS } from "@/domain/fields.js";
 import type { Question } from "@/domain/planner.js";
 import type { DossierField, Evidence } from "@/domain/types.js";
+import { interviewQuestion, interviewRationale } from "./interview-copy.js";
 
 export interface QuestionPanelProps {
   question: Question;
@@ -68,22 +69,27 @@ function ConflictQuestion({
               <>
                 <blockquote>&ldquo;{candidate.citation.quote}&rdquo;</blockquote>
                 <span className="meta">
-                  {candidate.citation.documentId} · page {candidate.citation.page}
+                  {candidate.source === "user"
+                    ? "asserted by you earlier in this interview"
+                    : `${candidate.citation.documentId} · page ${candidate.citation.page}`}
                 </span>
                 <div className="row">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
+                    onClick={() => {
+                      const citation = candidate.citation!;
                       onOpenSource(
                         {
-                          ...candidate.citation!,
-                          surroundingWindow: "",
+                          ...citation,
+                          surroundingWindow:
+                            (citation as Partial<Evidence>).surroundingWindow ??
+                            "",
                         },
                         field.label,
-                      )
-                    }
+                      );
+                    }}
                   >
                     View source
                   </Button>
@@ -351,11 +357,21 @@ export function QuestionPanel({
   onOpenSource,
 }: QuestionPanelProps) {
   const def = fieldDefinition(field.key);
-  const questionText =
+  const fallbackQuestion =
     def?.question ?? `What is the ${field.label.toLowerCase()}?`;
-  const rationale =
+  const fallbackRationale =
     def?.rationale ??
     "This field needs your input because the documents do not resolve it.";
+  const questionText = interviewQuestion(
+    field.key,
+    question.shape,
+    fallbackQuestion,
+  );
+  const rationale = interviewRationale(
+    field.key,
+    question.shape,
+    fallbackRationale,
+  );
 
   return (
     <div className="card stack">
