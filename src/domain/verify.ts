@@ -70,6 +70,7 @@ export function captureWindow(
 
 export function verifyCitation(citation: Citation, pageText: string): Evidence | null {
   const normQuote = normalize(citation.quote);
+  if (normQuote.length === 0) return null;
   const normPage = normalize(pageText);
   if (!normPage.includes(normQuote)) return null;
   return {

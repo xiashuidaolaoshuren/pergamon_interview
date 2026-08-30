@@ -130,6 +130,30 @@ describe("applyEvent provide-answer", () => {
     expect(field.evidence).toEqual([sampleEvidence]);
     expect(field.resolutionHistory.at(-1)?.action).toBe("user-conflict");
   });
+
+  it("keeps a conflicting field conflicting when answered again", () => {
+    const dossier = dossierWith(
+      dossierField("capacity", {
+        status: "conflicting",
+        originalValue: ["1.5 L", "1.7 L"],
+        normalizedValue: ["1.5 L", "1.7 L"],
+        evidence: [sampleEvidence],
+      }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "provide-answer",
+      fieldKey: "capacity",
+      value: "2.0 L",
+    });
+
+    const field = result.dossier.find((item) => item.key === "capacity")!;
+    expect(field.status).toBe("conflicting");
+    expect(field.originalValue).toEqual(["1.5 L", "1.7 L", "2.0 L"]);
+    expect(field.normalizedValue).toEqual(["1.5 L", "1.7 L", "2 L"]);
+    expect(field.resolutionHistory.at(-1)?.action).toBe("user-conflict");
+    expect(authoringReadiness(result.dossier).verdict).toBe("needs-review");
+  });
 });
 
 describe("applyEvent adjudicate", () => {
@@ -220,6 +244,33 @@ describe("applyEvent apply-proposals", () => {
     expect(importer.status).toBe("user-provided");
     expect(capacity.status).toBe("conflicting");
     expect(result.dossier.some((item) => item.key === "unknown-field")).toBe(false);
+  });
+
+  it("keeps a conflicting field conflicting when a proposal contradicts it", () => {
+    const dossier = dossierWith(
+      dossierField("capacity", {
+        status: "conflicting",
+        originalValue: ["1.5 L", "1.7 L"],
+        normalizedValue: ["1.5 L", "1.7 L"],
+        evidence: [sampleEvidence],
+      }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "apply-proposals",
+      proposals: [
+        {
+          fieldKey: "capacity",
+          proposedValue: "2.0 L",
+          answerText: "Actually 2.0 L",
+        },
+      ],
+    });
+
+    const field = result.dossier.find((item) => item.key === "capacity")!;
+    expect(field.status).toBe("conflicting");
+    expect(field.originalValue).toEqual(["1.5 L", "1.7 L", "2.0 L"]);
+    expect(authoringReadiness(result.dossier).verdict).toBe("needs-review");
   });
 
   it("does not mutate the input dossier", () => {

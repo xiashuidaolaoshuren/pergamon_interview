@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { interpretPrompt } from "../src/domain/prompt.js";
 import type { DossierField } from "../src/domain/types.js";
@@ -15,10 +16,17 @@ import {
   interpretAnswer as defaultInterpretAnswer,
   type GeminiTransport,
 } from "./gemini.js";
-import { validateIntakeUploads } from "./intake.js";
+import {
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_COUNT,
+  validateIntakeUploads,
+} from "./intake.js";
 import { PdfExtractError } from "./pdf.js";
 
 export { MAX_UPLOAD_BYTES, MAX_UPLOAD_COUNT } from "./intake.js";
+
+export const DEFAULT_MAX_REQUEST_BYTES =
+  MAX_UPLOAD_COUNT * MAX_UPLOAD_BYTES + 256 * 1024;
 
 export interface ApiErrorBody {
   error: {
@@ -40,6 +48,7 @@ export interface HttpDeps {
   transport?: GeminiTransport;
   runExtractionFn?: typeof runExtraction;
   interpretAnswerFn?: typeof defaultInterpretAnswer;
+  maxRequestBytes?: number;
 }
 
 const fixtureExtractSchema = z.object({
@@ -73,6 +82,26 @@ function intakeError(uploads: PipelineUpload[]): Response | null {
 
 function uploadIdFromFilename(filename: string): string {
   return basename(filename).replace(/\.[^.]+$/, "");
+}
+
+function assignUniqueUploadIds(uploads: PipelineUpload[]): PipelineUpload[] {
+  const used = new Set<string>();
+  return uploads.map((upload) => {
+    const stem = uploadIdFromFilename(upload.filename);
+    let id = stem;
+    if (used.has(id)) {
+      id = upload.filename;
+    }
+    if (used.has(id)) {
+      let suffix = 2;
+      while (used.has(`${stem}-${suffix}`)) {
+        suffix += 1;
+      }
+      id = `${stem}-${suffix}`;
+    }
+    used.add(id);
+    return { ...upload, id };
+  });
 }
 
 function dossierSummary(dossier: DossierField[]): string {
@@ -120,6 +149,18 @@ export function createApp(deps: HttpDeps) {
   const run = deps.runExtractionFn ?? runExtraction;
   const interpret = deps.interpretAnswerFn ?? defaultInterpretAnswer;
 
+  app.use(
+    "*",
+    bodyLimit({
+      maxSize: deps.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES,
+      onError: (c) =>
+        c.json(
+          { error: { code: "payload-too-large", message: "Request body too large." } },
+          413,
+        ),
+    }),
+  );
+
   app.post("/api/extract", async (c) => {
     const contentType = c.req.header("content-type") ?? "";
 
@@ -152,7 +193,7 @@ export function createApp(deps: HttpDeps) {
         contentType.includes("multipart/form-data") ||
         contentType.includes("application/x-www-form-urlencoded")
       ) {
-        const body = await c.req.parseBody();
+        const body = await c.req.parseBody({ all: true });
         const rawFiles = body.files;
         const files = Array.isArray(rawFiles)
           ? rawFiles.filter((item): item is File => item instanceof File)
@@ -160,7 +201,9 @@ export function createApp(deps: HttpDeps) {
             ? [rawFiles]
             : [];
 
-        const uploads = await Promise.all(files.map(readUploadFile));
+        const uploads = assignUniqueUploadIds(
+          await Promise.all(files.map(readUploadFile)),
+        );
         const invalid = intakeError(uploads);
         if (invalid) return invalid;
 
@@ -185,6 +228,9 @@ export function createApp(deps: HttpDeps) {
       }
       if (error instanceof PdfExtractError) {
         return jsonError(error.code, error.message);
+      }
+      if (error instanceof z.ZodError || error instanceof SyntaxError) {
+        return jsonError("invalid-request", "Invalid extract request body.");
       }
       throw error;
     }
@@ -214,7 +260,7 @@ export function createApp(deps: HttpDeps) {
         }
         return mapGeminiError(error);
       }
-      if (error instanceof z.ZodError) {
+      if (error instanceof z.ZodError || error instanceof SyntaxError) {
         return jsonError("invalid-request", "Invalid interpret request body.");
       }
       throw error;

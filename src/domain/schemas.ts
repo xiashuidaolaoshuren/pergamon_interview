@@ -5,7 +5,7 @@ const extractionCandidateSchema = z.object({
   value: z.unknown(),
   document: z.string(),
   page: z.number(),
-  quote: z.string(),
+  quote: z.string().trim().min(1),
 });
 
 export const extractionResponseSchema = z.object({

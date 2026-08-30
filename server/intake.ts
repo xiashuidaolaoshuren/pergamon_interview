@@ -8,10 +8,9 @@ export interface IntakeValidationError {
   message: string;
 }
 
-function isAcceptedUpload(filename: string, mediaType: string): boolean {
+function isAcceptedUpload(filename: string): boolean {
   const lower = filename.toLowerCase();
-  if (lower.endsWith(".pdf") || lower.endsWith(".txt")) return true;
-  return mediaType === "application/pdf" || mediaType === "text/plain";
+  return lower.endsWith(".pdf") || lower.endsWith(".txt");
 }
 
 export function validateIntakeUploads(
@@ -36,7 +35,7 @@ export function validateIntakeUploads(
         message: `File ${upload.filename} exceeds the 10 MB limit.`,
       };
     }
-    if (!isAcceptedUpload(upload.filename, upload.mediaType)) {
+    if (!isAcceptedUpload(upload.filename)) {
       return {
         code: "invalid-intake",
         message: `Unsupported file type for ${upload.filename}. Use PDF or TXT.`,

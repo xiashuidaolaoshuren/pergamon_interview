@@ -91,6 +91,29 @@ describe("POST /api/extract intake validation", () => {
     expect(none.status).toBe(400);
     expect(runExtractionFn).not.toHaveBeenCalled();
   });
+
+  it("rejects oversize request bodies before extraction", async () => {
+    const runExtractionFn = vi.fn();
+    const app = createApp({
+      fixtureDir,
+      runExtractionFn,
+      maxRequestBytes: 64,
+    });
+
+    const form = new FormData();
+    form.append(
+      "files",
+      new File(["x".repeat(256)], "notes.txt", { type: "text/plain" }),
+    );
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(413);
+    expect(runExtractionFn).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/extract live missing key", () => {
@@ -111,6 +134,55 @@ describe("POST /api/extract live missing key", () => {
         envVar: "GEMINI_KEY",
         message: expect.stringContaining("recorded"),
       },
+    });
+  });
+});
+
+describe("POST /api/extract invalid request", () => {
+  it("returns invalid-request for malformed JSON bodies", async () => {
+    const app = createApp({ fixtureDir });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: { code: "invalid-request" },
+    });
+  });
+
+  it("returns invalid-request for invalid fixture JSON bodies", async () => {
+    const app = createApp({ fixtureDir });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "bogus" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: { code: "invalid-request" },
+    });
+  });
+});
+
+describe("POST /api/interpret invalid request", () => {
+  it("returns invalid-request for malformed JSON bodies", async () => {
+    const app = createApp({ fixtureDir, apiKey: "test-key" });
+
+    const response = await app.request("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: { code: "invalid-request" },
     });
   });
 });
@@ -217,6 +289,85 @@ describe("POST /api/interpret", () => {
     expect(await response.json()).toMatchObject({
       error: { code: "rephrase" },
     });
+  });
+});
+
+describe("POST /api/extract multipart uploads", () => {
+  it("passes all uploaded files to the pipeline", async () => {
+    const runExtractionFn = vi.fn(async () => ({
+      mode: "live" as const,
+      dossier: sampleDossier(),
+      rejected: [],
+      coverage: "interview" as const,
+      counts: {
+        extracted: 0,
+        rejected: 0,
+        conflicts: 0,
+        missing: 1,
+      },
+    }));
+    const app = createApp({ fixtureDir, runExtractionFn, apiKey: "test-key" });
+
+    const form = new FormData();
+    form.append(
+      "files",
+      new File(["first"], "supplier-spec.txt", { type: "text/plain" }),
+    );
+    form.append(
+      "files",
+      new File(["second"], "draft-manual.txt", { type: "text/plain" }),
+    );
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(200);
+    expect(runExtractionFn).toHaveBeenCalledOnce();
+    const call = runExtractionFn.mock.calls[0]?.[0];
+    expect(call?.uploads?.map((upload: { filename: string }) => upload.filename)).toEqual([
+      "supplier-spec.txt",
+      "draft-manual.txt",
+    ]);
+  });
+
+  it("assigns unique ids when basenames collide across extensions", async () => {
+    const runExtractionFn = vi.fn(async () => ({
+      mode: "live" as const,
+      dossier: sampleDossier(),
+      rejected: [],
+      coverage: "interview" as const,
+      counts: {
+        extracted: 0,
+        rejected: 0,
+        conflicts: 0,
+        missing: 1,
+      },
+    }));
+    const app = createApp({ fixtureDir, runExtractionFn, apiKey: "test-key" });
+
+    const form = new FormData();
+    form.append(
+      "files",
+      new File(["txt"], "supplier-spec.txt", { type: "text/plain" }),
+    );
+    form.append(
+      "files",
+      new File(["pdf"], "supplier-spec.pdf", { type: "application/pdf" }),
+    );
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      body: form,
+    });
+
+    expect(response.status).toBe(200);
+    const call = runExtractionFn.mock.calls[0]?.[0];
+    expect(call?.uploads?.map((upload: { id: string; filename: string }) => upload.id)).toEqual([
+      "supplier-spec",
+      "supplier-spec.pdf",
+    ]);
   });
 });
 

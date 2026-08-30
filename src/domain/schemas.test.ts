@@ -42,6 +42,22 @@ describe("extractionResponseSchema", () => {
       extractionResponseSchema.parse({ candidates: [missingQuote] }),
     ).toThrow();
   });
+
+  it("rejects an empty quote", () => {
+    expect(() =>
+      extractionResponseSchema.parse({
+        candidates: [{ ...validCandidate, quote: "" }],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a whitespace-only quote", () => {
+    expect(() =>
+      extractionResponseSchema.parse({
+        candidates: [{ ...validCandidate, quote: "   " }],
+      }),
+    ).toThrow();
+  });
 });
 
 describe("extractionResponseSchema confidence", () => {

@@ -42,7 +42,7 @@ export function loadEnvFile(path: string): void {
 
   const parsed = parseEnvFile(contents);
   for (const [key, value] of Object.entries(parsed)) {
-    if (process.env[key] === undefined || process.env[key] === "") {
+    if (process.env[key] === undefined) {
       process.env[key] = value;
     }
   }

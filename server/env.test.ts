@@ -52,6 +52,18 @@ describe("loadEnvFile", () => {
     expect(process.env.NEW_KEY).toBe("from-file");
   });
 
+  it("does not overwrite an explicitly empty environment value", () => {
+    process.env.EMPTY_KEY = "";
+    const dir = mkdtempSync(join(tmpdir(), "env-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(path, "EMPTY_KEY=from-file\nFILLED_KEY=from-file");
+
+    loadEnvFile(path);
+
+    expect(process.env.EMPTY_KEY).toBe("");
+    expect(process.env.FILLED_KEY).toBe("from-file");
+  });
+
   it("does nothing when the file is missing", () => {
     expect(() => loadEnvFile(join(tmpdir(), "missing.env.local"))).not.toThrow();
   });

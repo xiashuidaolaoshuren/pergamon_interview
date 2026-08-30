@@ -62,6 +62,30 @@ function applyProvideAnswer(
       };
     }
 
+    if (field.status === "conflicting") {
+      const originalValues = Array.isArray(field.originalValue)
+        ? field.originalValue
+        : [field.originalValue];
+      const normalizedValues = Array.isArray(field.normalizedValue)
+        ? field.normalizedValue
+        : [field.normalizedValue];
+      const alreadyPresent = normalizedValues.some((existing) =>
+        normalizedEquals(existing, normalized),
+      );
+      if (alreadyPresent) return field;
+
+      return {
+        ...field,
+        status: "conflicting",
+        originalValue: [...originalValues, value],
+        normalizedValue: [...normalizedValues, normalized],
+        resolutionHistory: [
+          ...field.resolutionHistory,
+          resolutionEvent("user-conflict", String(value)),
+        ],
+      };
+    }
+
     return {
       ...field,
       status: "user-provided",

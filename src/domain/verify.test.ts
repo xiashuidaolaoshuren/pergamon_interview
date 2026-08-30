@@ -98,4 +98,20 @@ describe("verifyCitation verify", () => {
     expect(result?.page).toBe(3);
     expect(result?.quote).toBe("TARGET");
   });
+
+  it("returns null for an empty quote", () => {
+    const result = verifyCitation(
+      { documentId: "doc-1", page: 1, quote: "" },
+      "any page text",
+    );
+    expect(result).toBeNull();
+  });
+
+  it("returns null for a whitespace-only quote", () => {
+    const result = verifyCitation(
+      { documentId: "doc-1", page: 1, quote: "   " },
+      "any page text",
+    );
+    expect(result).toBeNull();
+  });
 });
