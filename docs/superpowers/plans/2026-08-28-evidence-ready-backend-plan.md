@@ -156,7 +156,7 @@ Dependency notation: `Blocked by: T1` means start after T1 is done.
 
 ### T6 — PDF + Gemini + extract pipeline
 
-- [ ] **Do:** Page-bounded PDF/TXT extract; Gemini structured extract and interpret using prompts from the field table; one schema-repair retry; `runExtraction` for live and recorded replay. Map encrypted, image-only, empty, quota, and malformed-JSON failures.
+- [x] **Do:** Page-bounded PDF/TXT extract; Gemini structured extract and interpret using prompts from the field table; one schema-repair retry; `runExtraction` for live and recorded replay. Map encrypted, image-only, empty, quota, and malformed-JSON failures.
 
 - **Blocked by:** T3, T4
 - **Plan mode:** high
@@ -191,5 +191,6 @@ Per subtask, obey `TDD suitable`: `yes` means strict **test-driven-development**
 | 2026-08-29 | T3 complete: verify, normalize, reconcile, coverage |
 | 2026-08-29 | T4 complete: bundled kettle fixtures (TXT, PDF, recorded extraction, page corpus) |
 | 2026-08-29 | T5 complete: planner, apply, readiness |
+| 2026-08-30 | T6 complete: PDF extract, Gemini client, extract pipeline |
 
 

@@ -13,6 +13,8 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@google/genai": "^2.19.0",
+    "unpdf": "^1.8.1",
     "zod": "^4.5.2"
   }
 }

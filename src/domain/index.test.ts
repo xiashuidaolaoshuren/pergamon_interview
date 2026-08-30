@@ -17,6 +17,8 @@ import {
   shouldPause,
   SOFT_CAP,
   verifyCitation,
+  extractionPrompt,
+  interpretPrompt,
 } from "./index.js";
 
 describe("domain barrel exports", () => {
@@ -38,5 +40,7 @@ describe("domain barrel exports", () => {
     expect(parseAnswer).toBeTypeOf("function");
     expect(applyEvent).toBeTypeOf("function");
     expect(authoringReadiness).toBeTypeOf("function");
+    expect(extractionPrompt).toBeTypeOf("function");
+    expect(interpretPrompt).toBeTypeOf("function");
   });
 });

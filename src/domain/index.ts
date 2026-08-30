@@ -18,6 +18,14 @@ export {
   type QuestionShape,
 } from "./planner.js";
 export {
+  extractionPrompt,
+  interpretPrompt,
+  type ExtractionPromptInput,
+  type InterpretPromptInput,
+  type PromptDocument,
+  type PromptDocumentPage,
+} from "./prompt.js";
+export {
   authoringReadiness,
   READINESS_VERDICTS,
   type BlockerReason,
