@@ -1,0 +1,44 @@
+{
+  "documents": [
+    {
+      "id": "supplier-spec",
+      "filename": "supplier-spec.txt",
+      "pages": [
+        {
+          "pageNumber": 1,
+          "text": "ACME APPLIANCES LTD.\nConfidential OEM specification - not for retail packaging\n\nProduct: Acme Rapid Kettle\nModel identifier: ARK-1500\nSKU: ARK-1500-EU-B\nManufacturer: Acme Appliances Ltd.\nFactory: Shenzhen assembly line 3\n\nElectrical ratings (nameplate): 230 V, 50 Hz, class I\nSupply cord: 0.75 mm2, 0.75 m, Schuko plug\nNet weight: 0.92 kg\nMaster carton: 6 units, 420 x 280 x 260 mm\n\nThis document describes the OEM kettle supplied to private-label buyers.\nMarket-facing contact details are supplied by the buyer, not by the factory."
+        },
+        {
+          "pageNumber": 2,
+          "text": "2. Physical construction\n\nThe vessel is a stainless steel body with a polypropylene handle and lid.\nA removable mesh filter sits in the spout. Colour: brushed steel / black handle.\n\nFill between the min mark and the max mark. The usable capacity is 1.5 L\nwhen filled to the max line. Do not fill above the max mark.\n\nIntended use: Boiling water for domestic use. Not for commercial catering\nor outdoor cooking.\n\nThe heating element is concealed in the base of the jug. Do not operate\nthe kettle on an induction hob. Keep the rating label on the base visible."
+        },
+        {
+          "pageNumber": 3,
+          "text": "3. Packing, care, and end of life\n\nGoods in the carton: kettle body, 360-degree power base, unbranded leaflet.\n\nAutomatic shut-off: a steam sensor switches the kettle off at boil.\nBoil-dry protection cuts power if the vessel is empty.\n\nCleaning: descale with a 1:1 white vinegar solution. Do not immerse the\npower base. Do not use abrasive pads on the heating plate.\n\nEnd of life: this product must not be disposed of with household waste;\ntake it to a WEEE collection point.\n\nFactory warranty: 12 months against manufacturing defects. Retail warranty\nis the buyer's responsibility. Batch coding: YYWW plus line id on the base."
+        }
+      ]
+    },
+    {
+      "id": "draft-manual",
+      "filename": "draft-manual.txt",
+      "pages": [
+        {
+          "pageNumber": 1,
+          "text": "User instructions\n\nAcme Rapid Kettle\nModel ARK-1500\nManufacturer: Acme Appliances Ltd.\n\nPlease read these instructions before first use and keep them for later\nreference. Retain the carton until you have checked that nothing is missing.\n\nTechnical data\nRated voltage: 230 V\nRated frequency: 50 Hz\nProtection class: I\n\nPlace the kettle on a stable, heat-resistant surface away from the edge\nof the worktop. Do not use it outdoors."
+        },
+        {
+          "pageNumber": 2,
+          "text": "About this kettle\n\nThis cordless kettle is for household hot-water preparation. Place it on\na dry surface and keep the cord clear of the hob.\n\nThe jug holds 1.7 L to the maximum mark. A water window on the handle\nshows the level. The lid opens with the button on the handle.\n\nIf the kettle was transported on its side, let it stand upright for\n30 minutes before connecting the base.\n\nKeep children away from the steam when the kettle switches off."
+        },
+        {
+          "pageNumber": 3,
+          "text": "Before first use, fill to max, boil, and discard the water twice.\n\nTo boil\n1. Sit the 360-degree power base on a level surface and plug it in.\n2. Fill the kettle, close the lid, and place it on the base.\n3. Press the switch down. The indicator lamp lights.\n4. The kettle switches off automatically when the water boils. Lift the jug to pour.\n\nThe kettle includes: kettle, power base, and spout filter.\n\nIf you lift the kettle off the base, it switches off. Replace it and\npress the switch again to restart."
+        },
+        {
+          "pageNumber": 4,
+          "text": "Safety and care\n\nA boil-dry cut-out operates if the kettle is switched on with little or\nno water. Allow it to cool, refill, then restart.\n\nDescaling: use a kettle descaler or equal parts water and white vinegar.\nRinse thoroughly. Do not put the kettle or the base in a dishwasher.\nDo not immerse the base in water.\n\nWhen the product is worn out, do not put it in household rubbish.\nDeliver it to a local electrical-waste (WEEE) collection site.\n\nKeep the kettle out of reach of children. Do not open the lid while boiling."
+        }
+      ]
+    }
+  ]
+}

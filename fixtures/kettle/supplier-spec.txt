@@ -1,0 +1,49 @@
+--- page 1 ---
+ACME APPLIANCES LTD.
+Confidential OEM specification - not for retail packaging
+
+Product: Acme Rapid Kettle
+Model identifier: ARK-1500
+SKU: ARK-1500-EU-B
+Manufacturer: Acme Appliances Ltd.
+Factory: Shenzhen assembly line 3
+
+Electrical ratings (nameplate): 230 V, 50 Hz, class I
+Supply cord: 0.75 mm2, 0.75 m, Schuko plug
+Net weight: 0.92 kg
+Master carton: 6 units, 420 x 280 x 260 mm
+
+This document describes the OEM kettle supplied to private-label buyers.
+Market-facing contact details are supplied by the buyer, not by the factory.
+
+--- page 2 ---
+2. Physical construction
+
+The vessel is a stainless steel body with a polypropylene handle and lid.
+A removable mesh filter sits in the spout. Colour: brushed steel / black handle.
+
+Fill between the min mark and the max mark. The usable capacity is 1.5 L
+when filled to the max line. Do not fill above the max mark.
+
+Intended use: Boiling water for domestic use. Not for commercial catering
+or outdoor cooking.
+
+The heating element is concealed in the base of the jug. Do not operate
+the kettle on an induction hob. Keep the rating label on the base visible.
+
+--- page 3 ---
+3. Packing, care, and end of life
+
+Goods in the carton: kettle body, 360-degree power base, unbranded leaflet.
+
+Automatic shut-off: a steam sensor switches the kettle off at boil.
+Boil-dry protection cuts power if the vessel is empty.
+
+Cleaning: descale with a 1:1 white vinegar solution. Do not immerse the
+power base. Do not use abrasive pads on the heating plate.
+
+End of life: this product must not be disposed of with household waste;
+take it to a WEEE collection point.
+
+Factory warranty: 12 months against manufacturing defects. Retail warranty
+is the buyer's responsibility. Batch coding: YYWW plus line id on the base.

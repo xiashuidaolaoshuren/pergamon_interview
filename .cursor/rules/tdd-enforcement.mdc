@@ -1,0 +1,41 @@
+---
+description: Agent mode — enforce strict TDD when decomposition plan or subtask plan requires it
+alwaysApply: true
+---
+
+# TDD Enforcement (Agent mode)
+
+**Scope:** Agent mode only. Plan mode = planning only; no RED/GREEN execution.
+
+## When this applies
+
+1. Type 1 **`TDD suitable: yes`/`partial`** → strict TDD (type 1 wins over type 2)
+2. Type 2 test-first plan, or user invokes **test-driven-development** skill → strict TDD
+3. **`TDD suitable: no`** → **Verification** only
+4. Else → skill **When to use strict TDD** / **When not**
+
+Plans: type 1 `docs/superpowers/plans/*-plan.md` (whether); type 2 `.cursor/plans/*.plan.md` (how — **planning-subtasks**).
+
+## Cycle
+
+**Iron law:** No production code without a failing test first.
+
+1. **RED** — test edits only → scoped run (`-t`, `-k`, `-g`) → chat `RED:` or `IMMEDIATE-GREEN:` → **stop**
+2. **GREEN** — one **behavior**, production edits only → scoped run → chat `GREEN:`
+3. **REFACTOR** — after green only
+
+- One behavior per GREEN; multiple tests in one RED step OK if each gets a scoped failing run first
+- RED turn = test files only; GREEN turn = production only — never both in one turn
+- No production edits until chat says **RED**; violation → delete code, restart RED
+
+## IMMEDIATE-GREEN
+
+Test passes before the matching GREEN = ahead-of-schedule production or a weak test.
+
+1. Chat `IMMEDIATE-GREEN:` → delete/revert unverified production
+2. Re-run scoped RED → one-behavior GREEN only
+3. Do **not** mark GREEN todo complete; skip rollback = violation
+
+**New module:** first GREEN = types + stubs only (`NotImplementedError` / empty defaults). No graph wiring, dispatch, error handling, or logging for later behaviors.
+
+Details: **test-driven-development** skill (**TDD audit**, stub-first table). Mocks: **testing-anti-patterns.md**.
