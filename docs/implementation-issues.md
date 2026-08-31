@@ -2,7 +2,7 @@
 
 A learning log of bugs and surprises found while building EvidenceReady. Each entry records what went wrong, why, and what we changed so the lesson sticks.
 
-These three High findings came from the third backend code-review pass (after T7 and two rounds of review-driven fixes). They were reproduced against the live module, not inferred from the spec.
+Entries 1–3 came from the third backend code-review pass (after T7 and two rounds of review-driven fixes). They were reproduced against the live module, not inferred from the spec. Later entries are live-path incidents captured for `PROPOSAL.md` (spec §15: any real AI failure discussed there must come from actual development experience, not a staged model mistake).
 
 ---
 
@@ -166,5 +166,76 @@ Regressions in `server/http.test.ts`: malformed dossier members; unexpected extr
 - Catch lists are incomplete by construction — a catch-all `onError` (or equivalent) is what keeps the error *envelope* invariant when a new throw appears.
 - Do not key HTTP status off a shared language type (`SyntaxError`, `ZodError`) when the same type can come from the client *or* from server-side files. Catch at the call site that produced the error.
 - The UI will parse `error.code`. A plain-text 500 is a contract break, not a generic server failure.
+
+---
+
+## 4. Live Gemini “unavailable” was a retired model — then a geo block
+
+**When:** Live-extraction smoke after the frontend interview path was in place (31 Aug 2026)  
+**Area:** `server/gemini.ts` (`createDefaultTransport`, `mapTransportError`), `server/http.ts` (`mapGeminiError`)  
+**Symptom:** With `GEMINI_KEY` set in `.env.local`, live bundled extract showed **Extraction could not complete** / **Gemini service is temporarily unavailable.** / **Retry**. Recorded extract still worked.
+
+This is the kind of incident spec §15 wants in `PROPOSAL.md`: a real integration failure from development, not a staged hallucination.
+
+### What we saw
+
+The missing-key card is a different heading (“Live extraction needs a Gemini API key”). That card did **not** appear, so the server had already passed `requireApiKey`.
+
+The copy **“Gemini service is temporarily unavailable.”** is produced only when `GeminiError.code === "upstream"`:
+
+```ts
+if (error.code === "upstream") {
+  return jsonError(
+    "gemini-unavailable",
+    "Gemini service is temporarily unavailable.",
+    {},
+    503,
+  );
+}
+```
+
+`mapTransportError` maps 401/403 → `auth`, 429 → `quota`, `TypeError` → `network`, and **everything else** (including HTTP 400/404) to `upstream`. Two distinct API failures therefore collapsed to the same 503 and the same Retry button.
+
+**Layer A — retired model.** `createDefaultTransport` hardcoded `gemini-2.0-flash`. Google shut that id down on **1 June 2026** (documented replacement: `gemini-3.7-flash`). A 404-shaped SDK error is not 401/429, so it became `upstream`. Configuring the key could not help: every live `generateContent` called a dead model.
+
+**Layer B — region after the swap.** After switching to `gemini-3.7-flash`, a direct SDK probe with the same key returned:
+
+```text
+ApiError: {"error":{"code":400,"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}
+status: 400
+```
+
+That 400 is also unmapped, so the UI still said “temporarily unavailable.” The model-id fix was real; the remaining failure is **Gemini Developer API geo policy**, not a missing key and not a transient outage.
+
+### Root cause
+
+Three decisions stacked:
+
+1. A **hardcoded model id** with no pin, alias, or deprecation check. Live extract is only as current as that string.
+2. **Coarse error mapping.** Auth/quota/network are typed; 404 (unknown model) and 400 `FAILED_PRECONDITION` (unsupported location) fall through to `upstream` → user copy that implies a brief outage.
+3. **Live path is optional for the demo, but the failure looks like the product is broken.** Recorded replay exists so the interview does not depend on Gemini being reachable from this network. The undifferentiated 503 hid that distinction.
+
+### Fix
+
+- Export `GEMINI_MODEL = "gemini-3.7-flash"` and use it in `createDefaultTransport`. Keep `responseMimeType: "application/json"`.
+- Do **not** invent a new error code or log document text in that pass. Geo restriction remains `gemini-unavailable` until a later mapping change.
+- Recorded mode is the assessable path when live Gemini cannot run (unsupported region, quota, retired id).
+
+### Lesson (proposal-ready)
+
+- **A configured key is not a working live path.** The first diagnosis (“the key is set, so Gemini must be down”) was wrong twice: first a retired model, then a region block. Same screenshot, different causes.
+- **Vendor model ids rot.** Pinning `gemini-2.0-flash` was correct in 2025 and false in August 2026. Recorded extraction is not a test shortcut; it is how the demo stays honest when the live vendor surface moves.
+- **Collapse distinct faults into “temporarily unavailable” and you cannot debug from the UI.** Assessors and operators will retry a geo 400 forever. Typed codes (`auth`, `quota`, `network`, and a location/precondition class) earn their keep at the HTTP boundary.
+- **Do not stage a model mistake for the proposal.** Unsupported-citation rejection is in the recorded fixture on purpose. This incident is the live-AI failure to cite: integration and availability, not the model inventing a field.
+
+### Lift into `PROPOSAL.md` (when writing it)
+
+Suggested use: limitations / AI-assisted workflow, one short anecdote.
+
+- Problem: live extract failed with a generic 503 despite a valid `GEMINI_KEY`.
+- Cause 1: hardcoded `gemini-2.0-flash` after Google’s 1 June 2026 shutdown.
+- Cause 2 (same UI): `400 FAILED_PRECONDITION` “User location is not supported for the API use.”
+- Response: swap to `gemini-3.7-flash`; keep recorded replay as the deterministic demo; treat live Gemini as best-effort from a supported region.
+- What we would do next: map location/precondition (and unknown-model 404) to distinct codes and copy, instead of `gemini-unavailable`.
 
 ---
