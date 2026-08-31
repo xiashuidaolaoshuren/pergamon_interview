@@ -12,6 +12,7 @@ import { ExtractionProgress } from "@/screens/ExtractionProgress";
 import { InsufficientEvidence } from "@/screens/InsufficientEvidence";
 import { InterviewWorkspace } from "@/screens/InterviewWorkspace";
 import { Intake } from "@/screens/Intake";
+import { ReadinessReport } from "@/screens/ReadinessReport";
 import { clearSession, loadSession, saveSession } from "@/session";
 import type { StoredSession } from "@/session";
 
@@ -200,16 +201,12 @@ export default function App() {
         ) : null}
 
         {state.phase === "report" ? (
-          <section className="screen-pad screen-enter">
-            <div className="mx-auto max-w-[860px]">
-              <p className="eyebrow">Readiness report · HK-1750 kettle</p>
-              <h2>Report screen — implemented in T7</h2>
-              <p className="lead">
-                The interview completed. Readiness report rendering is the next
-                subtask.
-              </p>
-            </div>
-          </section>
+          <ReadinessReport
+            dossier={state.dossier}
+            mode={state.mode}
+            onBackToInterview={() => dispatch({ type: "open-interview" })}
+            onRestart={() => dispatch({ type: "restart" })}
+          />
         ) : null}
       </main>
 

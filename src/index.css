@@ -836,6 +836,43 @@ h2 + .lead {
   margin-top: 2px;
 }
 
+.verdict {
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.verdict.ready {
+  border-color: color-mix(in oklch, var(--st-confirmed) 45%, var(--border));
+}
+
+.verdict.review {
+  border-color: color-mix(in oklch, var(--st-unverified) 50%, var(--border));
+}
+
+.criterion {
+  display: flex;
+  gap: var(--gap-sm);
+  align-items: baseline;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.criterion .c-mark {
+  font-family: var(--font-mono);
+  width: 18px;
+  flex: none;
+}
+
+.criterion.pass .c-mark {
+  color: var(--st-confirmed);
+}
+
+.criterion.fail .c-mark {
+  color: var(--st-conflict);
+}
+
 .banner {
   border: 1px solid color-mix(in oklch, var(--st-confirmed) 40%, var(--border));
   background: color-mix(in oklch, var(--st-confirmed) 7%, var(--surface));
