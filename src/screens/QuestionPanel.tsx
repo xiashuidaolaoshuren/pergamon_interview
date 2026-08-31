@@ -374,7 +374,7 @@ export function QuestionPanel({
   );
 
   return (
-    <div className="card stack">
+    <div className="card stack q-enter">
       <div className="row-between flex-wrap">
         <span className={`pill ${shapePillClass(question.shape)}`}>
           {question.shape}

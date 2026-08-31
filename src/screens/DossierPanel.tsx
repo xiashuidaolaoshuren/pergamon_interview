@@ -3,6 +3,7 @@ import type { DossierField, Evidence, FieldStatus } from "@/domain/types.js";
 export interface DossierPanelProps {
   dossier: DossierField[];
   flashKey?: string;
+  flashEpoch?: number;
   onOpenSource: (evidence: Evidence, label: string) => void;
   onOpenRejected: (fieldKey: string) => void;
 }
@@ -50,6 +51,7 @@ function groupOrder(dossier: DossierField[]): string[] {
 export function DossierPanel({
   dossier,
   flashKey,
+  flashEpoch,
   onOpenSource,
   onOpenRejected,
 }: DossierPanelProps) {
@@ -69,7 +71,11 @@ export function DossierPanel({
 
               return (
               <div
-                key={field.key}
+                key={
+                  flashKey === field.key && flashEpoch !== undefined
+                    ? `${field.key}-${flashEpoch}`
+                    : field.key
+                }
                 className={`d-row${flashKey === field.key ? " flash" : ""}`}
               >
                 <div className="d-head">

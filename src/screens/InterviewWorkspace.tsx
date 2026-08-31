@@ -72,6 +72,7 @@ export function InterviewWorkspace({
     null,
   );
   const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [flashEpoch, setFlashEpoch] = useState(0);
 
   const question = useMemo(
     () => nextQuestion(dossier, interview),
@@ -113,7 +114,12 @@ export function InterviewWorkspace({
   }
 
   function handleAnswer(event: ApplyEvent) {
-    setFlashKey("fieldKey" in event ? event.fieldKey : null);
+    if ("fieldKey" in event) {
+      setFlashKey(event.fieldKey);
+      setFlashEpoch((epoch) => epoch + 1);
+    } else {
+      setFlashKey(null);
+    }
     onAnswer(event);
   }
 
@@ -142,6 +148,7 @@ export function InterviewWorkspace({
           <div>
             {question && currentField ? (
               <QuestionPanel
+                key={question.fieldKey}
                 question={question}
                 field={currentField}
                 dossier={dossier}
@@ -177,6 +184,7 @@ export function InterviewWorkspace({
               <DossierPanel
                 dossier={dossier}
                 flashKey={flashKey ?? undefined}
+                flashEpoch={flashEpoch}
                 onOpenSource={openEvidence}
                 onOpenRejected={openRejected}
               />

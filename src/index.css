@@ -707,19 +707,16 @@ h2 + .lead {
 }
 
 @keyframes flash {
-  0%,
+  0% {
+    background: var(--accent-soft);
+  }
   100% {
     background: transparent;
   }
-  18% {
-    background: color-mix(in oklch, var(--st-confirmed) 16%, transparent);
-  }
-  36% {
-    background: transparent;
-  }
-  54% {
-    background: color-mix(in oklch, var(--st-confirmed) 10%, transparent);
-  }
+}
+
+.q-enter {
+  animation: fadein 0.25s ease;
 }
 
 .d-row .d-sub {
