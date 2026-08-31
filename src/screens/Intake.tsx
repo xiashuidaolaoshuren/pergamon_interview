@@ -11,11 +11,16 @@ export interface IntakeProps {
 const PRIVACY_SENTENCE =
   "Image-only PDFs are unsupported — OCR is outside this prototype's scope. Document contents are sent to Gemini for extraction; raw files are processed in memory and never stored.";
 
+const COVERAGE_GATE_NOTE =
+  "Documents can parse successfully and still fail the essential-coverage check if too few essential fields produce any candidate, the interview does not open. The threshold is a declared constant, not a model judgement, so a thin marketing PDF cannot turn the session into a data-entry form.";
+
 export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
   const [mode, setMode] = useState<ExtractionMode>("recorded");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [explainOpen, setExplainOpen] = useState(false);
   const fileInputId = useId();
+  const coverageNoteId = useId();
 
   return (
     <section className="screen-pad screen-enter">
@@ -164,10 +169,18 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
             variant="ghost"
             size="sm"
             className="self-start"
+            aria-expanded={explainOpen}
+            aria-controls={coverageNoteId}
+            onClick={() => setExplainOpen((open) => !open)}
           >
             What happens when documents don&apos;t carry enough product
             information?
           </Button>
+          {explainOpen ? (
+            <p id={coverageNoteId} className="note m-0">
+              {COVERAGE_GATE_NOTE}
+            </p>
+          ) : null}
         </div>
       </div>
     </section>

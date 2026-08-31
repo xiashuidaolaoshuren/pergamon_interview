@@ -94,6 +94,49 @@ describe("Intake", () => {
     expect(screen.getByText(/at least one file is required/i)).toBeInTheDocument();
   });
 
+  it("reveals the coverage-gate note when the help link is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={vi.fn()} />,
+    );
+
+    const helpLink = screen.getByRole("button", {
+      name: /don't carry enough product information/i,
+    });
+    expect(helpLink).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(helpLink);
+
+    expect(helpLink).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByText(
+        /too few essential fields produce any candidate, the interview does not open/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/declared constant, not a model judgement/i),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the coverage-gate note when the help link is clicked again", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={vi.fn()} />,
+    );
+
+    const helpLink = screen.getByRole("button", {
+      name: /don't carry enough product information/i,
+    });
+
+    await user.click(helpLink);
+    await user.click(helpLink);
+
+    expect(helpLink).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByText(/declared constant, not a model judgement/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("calls onStartUpload with staged files when valid", async () => {
     const user = userEvent.setup();
     const onStartUpload = vi.fn();
