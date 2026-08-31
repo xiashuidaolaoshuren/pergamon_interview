@@ -32,8 +32,11 @@ function formatScalarValue(field: DossierField): string {
   return String(value);
 }
 
-function shortDocLabel(documentId: string): string {
-  return documentId.replace(/^HK-1750_/, "").replace(/\.pdf$/, "");
+function sourceDocLabel(documentId: string): string {
+  if (/\.(pdf|txt)$/i.test(documentId)) {
+    return documentId;
+  }
+  return `${documentId}.pdf`;
 }
 
 function groupOrder(dossier: DossierField[]): string[] {
@@ -113,7 +116,7 @@ export function DossierPanel({
                             className="src-link"
                             onClick={() => onOpenSource(evidence, field.label)}
                           >
-                            {shortDocLabel(evidence.documentId)} p.
+                            {sourceDocLabel(evidence.documentId)} p.
                             {evidence.page}
                           </button>
                         ))}

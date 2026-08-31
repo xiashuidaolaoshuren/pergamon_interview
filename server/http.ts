@@ -117,7 +117,10 @@ async function readUploadFile(file: File): Promise<PipelineUpload> {
 }
 
 function loadFixtureUploads(fixtureDir: string): PipelineUpload[] {
-  return ["supplier-spec.txt", "draft-manual.txt"].map((filename) => ({
+  return [
+    "ARK-1500_supplier-specification.txt",
+    "ARK-1500_draft-manual.txt",
+  ].map((filename) => ({
     id: uploadIdFromFilename(filename),
     filename,
     mediaType: "text/plain",

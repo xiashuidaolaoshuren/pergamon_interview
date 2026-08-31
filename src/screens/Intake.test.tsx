@@ -9,6 +9,27 @@ describe("Intake", () => {
     cleanup();
   });
 
+  it("shows ARK-1500 bundled example with matching fixture filenames", () => {
+    render(
+      <Intake
+        onStartBundled={vi.fn()}
+        onStartUpload={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: /bundled example · ark-1500 electric kettle/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("ARK-1500_supplier-specification.pdf"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("ARK-1500_draft-manual.pdf")).toBeInTheDocument();
+    expect(screen.getByText(/PDF · 3 pages/i)).toBeInTheDocument();
+    expect(screen.getByText(/PDF · 4 pages/i)).toBeInTheDocument();
+  });
+
   it("defaults to recorded mode and shows privacy sentence", () => {
     render(
       <Intake

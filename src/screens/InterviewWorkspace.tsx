@@ -176,7 +176,7 @@ export function InterviewWorkspace({
           <aside className="dossier">
             <div className="row-between mb-[var(--gap-sm)]">
               <span className="meta uppercase tracking-[0.06em]">
-                Live dossier · HK-1750
+                Live dossier · ARK-1500
               </span>
               <span className="meta">{dossierCounts(dossier)}</span>
             </div>

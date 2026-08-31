@@ -128,7 +128,7 @@ export default function App() {
         <div className="page-wrap topnav-inner">
           <span className="logo">
             EvidenceReady
-            {postIntake ? <span> · HK-1750 kettle</span> : null}
+            {postIntake ? <span> · ARK-1500 kettle</span> : null}
           </span>
           <div className="flex items-center gap-[var(--gap-sm)]">
             {postIntake ? <ModeBadge mode={state.mode} /> : null}

@@ -9,7 +9,7 @@ const INTERVIEW_COPY: Record<string, Partial<Record<QuestionShape, InterviewCopy
   {
     capacity: {
       conflict: {
-        question: "Which capacity is correct for the HK-1750?",
+        question: "Which capacity is correct for the ARK-1500?",
         rationale:
           "The specification and the draft manual disagree. The finished manual can state only one capacity, so this conflict must be adjudicated — the model cannot pick a winner.",
       },
@@ -33,7 +33,7 @@ const INTERVIEW_COPY: Record<string, Partial<Record<QuestionShape, InterviewCopy
     "cleaning-restrictions": {
       missing: {
         question:
-          "Are there cleaning or descaling restrictions for the HK-1750?",
+          "Are there cleaning or descaling restrictions for the ARK-1500?",
         rationale:
           "The draft manual has no cleaning section. Supporting fields never block readiness, but they enrich the dossier a technical writer receives.",
       },

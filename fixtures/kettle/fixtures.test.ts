@@ -65,8 +65,8 @@ describe("recorded extraction missing-quote", () => {
 describe("recorded pages fixture", () => {
   it("contains 1.5 L and 1.7 L on the cited pages", () => {
     const pages = loadRecordedPages();
-    expect(pageText(pages, "supplier-spec", 2)).toContain("1.5 L");
-    expect(pageText(pages, "draft-manual", 2)).toContain("1.7 L");
+    expect(pageText(pages, "ARK-1500_supplier-specification", 2)).toContain("1.5 L");
+    expect(pageText(pages, "ARK-1500_draft-manual", 2)).toContain("1.7 L");
   });
 
   it("mirrors the TXT page bodies", () => {
@@ -74,8 +74,14 @@ describe("recorded pages fixture", () => {
     expect(pages.documents[0]?.pages).toHaveLength(3);
     expect(pages.documents[1]?.pages).toHaveLength(4);
 
-    const specTxt = readFileSync(join(fixtureDir, "supplier-spec.txt"), "utf8");
-    const manualTxt = readFileSync(join(fixtureDir, "draft-manual.txt"), "utf8");
+    const specTxt = readFileSync(
+      join(fixtureDir, "ARK-1500_supplier-specification.txt"),
+      "utf8",
+    );
+    const manualTxt = readFileSync(
+      join(fixtureDir, "ARK-1500_draft-manual.txt"),
+      "utf8",
+    );
     const split = (raw: string) =>
       raw
         .replace(/\r\n/g, "\n")
@@ -95,7 +101,7 @@ describe("recorded pages fixture", () => {
 describe("fabricated rated-power quote", () => {
   it("does not appear on the cited supplier-spec page", () => {
     const pages = loadRecordedPages();
-    expect(pageText(pages, "supplier-spec", 2)).not.toContain("2200 W");
+    expect(pageText(pages, "ARK-1500_supplier-specification", 2)).not.toContain("2200 W");
   });
 
   it("does not appear anywhere in the page corpus", () => {
@@ -110,8 +116,14 @@ describe("fabricated rated-power quote", () => {
 
 describe("kettle txt fixtures", () => {
   it("exist and contain page markers", () => {
-    const spec = readFileSync(join(fixtureDir, "supplier-spec.txt"), "utf8");
-    const manual = readFileSync(join(fixtureDir, "draft-manual.txt"), "utf8");
+    const spec = readFileSync(
+      join(fixtureDir, "ARK-1500_supplier-specification.txt"),
+      "utf8",
+    );
+    const manual = readFileSync(
+      join(fixtureDir, "ARK-1500_draft-manual.txt"),
+      "utf8",
+    );
     expect(spec).toContain("--- page 1 ---");
     expect(spec).toContain("--- page 2 ---");
     expect(spec).toContain("--- page 3 ---");
@@ -125,8 +137,8 @@ describe("kettle pdf fixtures", () => {
   it("exist and are valid PDFs", async () => {
     const { PDFDocument } = await import("pdf-lib");
     const expected = [
-      ["supplier-spec.pdf", 3],
-      ["draft-manual.pdf", 4],
+      ["ARK-1500_supplier-specification.pdf", 3],
+      ["ARK-1500_draft-manual.pdf", 4],
     ] as const;
 
     for (const [filename, pageCount] of expected) {

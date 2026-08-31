@@ -132,7 +132,7 @@ export function ReadinessReport({
   return (
     <section className="screen-pad screen-enter">
       <div className="mx-auto max-w-[960px]">
-        <p className="eyebrow">Readiness report · HK-1750 kettle</p>
+        <p className="eyebrow">Readiness report · ARK-1500 kettle</p>
         <div className={`verdict ${ready ? "ready" : "review"}`}>
           <div className="row-between flex-wrap">
             <h2>

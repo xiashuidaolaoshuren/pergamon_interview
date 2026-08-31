@@ -8,10 +8,12 @@ const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "../fixtures/ke
 
 describe("extractPages happy path", () => {
   it("returns page-bounded text for TXT uploads with page markers", async () => {
-    const buffer = readFileSync(join(fixtureDir, "supplier-spec.txt"));
+    const buffer = readFileSync(
+      join(fixtureDir, "ARK-1500_supplier-specification.txt"),
+    );
     const result = await extractPages({
-      id: "supplier-spec",
-      filename: "supplier-spec.txt",
+      id: "ARK-1500_supplier-specification",
+      filename: "ARK-1500_supplier-specification.txt",
       mediaType: "text/plain",
       buffer,
     });
@@ -22,10 +24,12 @@ describe("extractPages happy path", () => {
   });
 
   it("returns page-bounded text for a valid PDF", async () => {
-    const buffer = readFileSync(join(fixtureDir, "supplier-spec.pdf"));
+    const buffer = readFileSync(
+      join(fixtureDir, "ARK-1500_supplier-specification.pdf"),
+    );
     const result = await extractPages({
-      id: "supplier-spec",
-      filename: "supplier-spec.pdf",
+      id: "ARK-1500_supplier-specification",
+      filename: "ARK-1500_supplier-specification.pdf",
       mediaType: "application/pdf",
       buffer,
     });

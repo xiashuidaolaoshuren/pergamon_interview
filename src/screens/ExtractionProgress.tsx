@@ -95,7 +95,7 @@ export function ExtractionProgress({
     <section className="screen-pad screen-enter">
       <div className="mx-auto max-w-[860px]">
         <p className="eyebrow">
-          {modeLabel(mode)} · HK-1750 kettle
+          {modeLabel(mode)} · ARK-1500 kettle
         </p>
         <h2>Extracting and verifying the dossier</h2>
         <p className="lead">

@@ -1,8 +1,8 @@
 {
   "documents": [
     {
-      "id": "supplier-spec",
-      "filename": "supplier-spec.txt",
+      "id": "ARK-1500_supplier-specification",
+      "filename": "ARK-1500_supplier-specification.txt",
       "pages": [
         {
           "pageNumber": 1,
@@ -19,8 +19,8 @@
       ]
     },
     {
-      "id": "draft-manual",
-      "filename": "draft-manual.txt",
+      "id": "ARK-1500_draft-manual",
+      "filename": "ARK-1500_draft-manual.txt",
       "pages": [
         {
           "pageNumber": 1,

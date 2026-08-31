@@ -33,7 +33,7 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
         <div className="card stack">
           <div>
             <h3>
-              Bundled example · HK-1750 electric kettle
+              Bundled example · ARK-1500 electric kettle
             </h3>
             <p className="note mt-[6px]">
               Two clearly labelled synthetic documents. Together they produce
@@ -42,12 +42,12 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
           </div>
           <div>
             <div className="doc-line">
-              <span>HK-1750_supplier-specification.pdf</span>
-              <span className="meta">PDF · 2 pages</span>
+              <span>ARK-1500_supplier-specification.pdf</span>
+              <span className="meta">PDF · 3 pages</span>
             </div>
             <div className="doc-line">
-              <span>HK-1750_draft-manual.pdf</span>
-              <span className="meta">PDF · 3 pages</span>
+              <span>ARK-1500_draft-manual.pdf</span>
+              <span className="meta">PDF · 4 pages</span>
             </div>
           </div>
           <div

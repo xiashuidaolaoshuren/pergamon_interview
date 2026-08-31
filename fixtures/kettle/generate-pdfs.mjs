@@ -62,8 +62,7 @@ const corpus = JSON.parse(
 const outDir = dirname(fileURLToPath(import.meta.url));
 
 for (const doc of corpus.documents) {
-  const filename =
-    doc.id === "supplier-spec" ? "supplier-spec.pdf" : "draft-manual.pdf";
+  const filename = `${doc.id}.pdf`;
   const texts = doc.pages.map((page) => page.text);
   writeFileSync(join(outDir, filename), await buildPdf(texts));
 }
