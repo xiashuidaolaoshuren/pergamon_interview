@@ -55,24 +55,53 @@ function rankUnresolved(dossier: DossierField[]): DossierField[] {
     .sort(compareUnresolved);
 }
 
+function isExhausted(fieldKey: string, state: InterviewState): boolean {
+  return (
+    state.exhaustedFieldKeys?.includes(fieldKey) === true ||
+    state.askedFieldKeys.includes(fieldKey)
+  );
+}
+
+function questionFor(field: DossierField): Question {
+  return {
+    fieldKey: field.key,
+    shape: shapeForStatus(field.status),
+  };
+}
+
 export function nextQuestion(
   dossier: DossierField[],
   state: InterviewState,
 ): Question | null {
+  if (state.pausedForBudget && !state.continuePastBudget) {
+    return null;
+  }
+
   const ranked = rankUnresolved(dossier);
   const unresolvedEssentials = ranked.filter((field) => field.tier === "essential");
-  if (unresolvedEssentials.length === 0) return null;
+  const unresolvedSupporting = ranked.filter((field) => field.tier === "supporting");
 
-  const unasked = unresolvedEssentials.filter(
-    (field) => !state.askedFieldKeys.includes(field.key),
+  if (unresolvedEssentials.length > 0) {
+    const unasked = unresolvedEssentials.filter(
+      (field) => !isExhausted(field.key, state),
+    );
+    if (unasked[0]) {
+      return questionFor(unasked[0]);
+    }
+  }
+
+  if (unresolvedSupporting.length === 0) {
+    return null;
+  }
+
+  if (!state.continueSupporting) {
+    return null;
+  }
+
+  const unaskedSupporting = unresolvedSupporting.filter(
+    (field) => !isExhausted(field.key, state),
   );
-  const candidate = unasked[0] ?? null;
-  if (!candidate) return null;
-
-  return {
-    fieldKey: candidate.key,
-    shape: shapeForStatus(candidate.status),
-  };
+  return unaskedSupporting[0] ? questionFor(unaskedSupporting[0]) : null;
 }
 
 export function shouldPause(state: InterviewState): boolean {

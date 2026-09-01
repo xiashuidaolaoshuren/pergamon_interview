@@ -3,7 +3,12 @@ import { normalizeValue } from "./normalize.js";
 import type { ConflictCandidate, DossierField, Evidence, Proposal, ResolutionEvent } from "./types.js";
 
 export type ApplyEvent =
-  | { type: "provide-answer"; fieldKey: string; value: unknown }
+  | {
+      type: "provide-answer";
+      fieldKey: string;
+      value: unknown;
+      sourceDescription?: string;
+    }
   | { type: "declare-unavailable"; fieldKey: string }
   | { type: "adjudicate"; fieldKey: string; selectedValue: unknown }
   | { type: "apply-proposals"; proposals: Proposal[] };
@@ -42,6 +47,7 @@ function applyProvideAnswer(
   dossier: DossierField[],
   fieldKey: string,
   value: unknown,
+  sourceDescription?: string,
 ): DossierField[] {
   const def = fieldDefinition(fieldKey);
   if (!def) return dossier;
@@ -111,6 +117,7 @@ function applyProvideAnswer(
       evidence: [],
       conflictCandidates: [],
       adjudicatedLosers: [],
+      userSourceDescription: sourceDescription?.trim() || field.userSourceDescription || null,
       resolutionHistory: [
         ...field.resolutionHistory,
         resolutionEvent("user-provided", String(value)),
@@ -164,13 +171,19 @@ function applyAdjudicate(
     if (field.status !== "conflicting") return field;
 
     const selectedNormalized = normalizeValue(selectedValue, def.valueKind);
+    const trimmedSelected = String(selectedValue).trim();
+    if (trimmedSelected.length === 0) return field;
+
     const winner = field.conflictCandidates.find((candidate) =>
       normalizedEquals(candidate.normalizedValue, selectedNormalized),
-    );
-    if (!winner) return field;
+    ) ?? {
+      value: selectedValue,
+      normalizedValue: selectedNormalized,
+      source: "user" as const,
+    };
 
     const losers = field.conflictCandidates.filter(
-      (candidate) => candidate !== winner,
+      (candidate) => !normalizedEquals(candidate.normalizedValue, selectedNormalized),
     );
 
     return {
@@ -203,6 +216,23 @@ export function parseAnswer(fieldKey: string, answerText: string): ApplyEvent {
   return { type: "provide-answer", fieldKey, value: trimmed };
 }
 
+export function needsInterpretation(fieldKey: string, answerText: string): boolean {
+  const trimmed = answerText.trim();
+  if (trimmed.length === 0) return false;
+
+  if (/[—–]|(?:\s-\s)/.test(trimmed)) return true;
+
+  const lower = trimmed.toLowerCase();
+  for (const field of KETTLE_FIELDS) {
+    if (field.key === fieldKey) continue;
+    if (lower.includes(field.label.toLowerCase())) return true;
+    const keyPhrase = field.key.replace(/-/g, " ");
+    if (keyPhrase.length > 4 && lower.includes(keyPhrase)) return true;
+  }
+
+  return false;
+}
+
 export function applyEvent(
   dossier: DossierField[],
   event: ApplyEvent,
@@ -210,7 +240,14 @@ export function applyEvent(
   const copy = structuredClone(dossier);
 
   if (event.type === "provide-answer") {
-    return { dossier: applyProvideAnswer(copy, event.fieldKey, event.value) };
+    return {
+      dossier: applyProvideAnswer(
+        copy,
+        event.fieldKey,
+        event.value,
+        event.sourceDescription,
+      ),
+    };
   }
 
   if (event.type === "declare-unavailable") {

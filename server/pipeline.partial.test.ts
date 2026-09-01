@@ -20,10 +20,12 @@ describe("runExtraction partial failure", () => {
       mode: "live",
       uploads: [
         {
-          id: "supplier-spec",
-          filename: "supplier-spec.txt",
+          id: "ARK-1500_supplier-specification",
+          filename: "ARK-1500_supplier-specification.txt",
           mediaType: "text/plain",
-          buffer: readFileSync(join(fixtureDir, "supplier-spec.txt")),
+          buffer: readFileSync(
+            join(fixtureDir, "ARK-1500_supplier-specification.txt"),
+          ),
         },
         {
           id: "blank",
@@ -54,10 +56,12 @@ describe("runExtraction partial failure", () => {
       mode: "live",
       uploads: [
         {
-          id: "supplier-spec",
-          filename: "supplier-spec.txt",
+          id: "ARK-1500_supplier-specification",
+          filename: "ARK-1500_supplier-specification.txt",
           mediaType: "text/plain",
-          buffer: readFileSync(join(fixtureDir, "supplier-spec.txt")),
+          buffer: readFileSync(
+            join(fixtureDir, "ARK-1500_supplier-specification.txt"),
+          ),
         },
         {
           id: "corrupt",

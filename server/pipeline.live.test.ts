@@ -17,21 +17,23 @@ describe("runExtraction live path", () => {
     );
     const transport = vi.fn(async () => extraction);
 
-    const supplier = readFileSync(join(fixtureDir, "supplier-spec.txt"));
-    const manual = readFileSync(join(fixtureDir, "draft-manual.txt"));
+    const supplier = readFileSync(
+      join(fixtureDir, "ARK-1500_supplier-specification.txt"),
+    );
+    const manual = readFileSync(join(fixtureDir, "ARK-1500_draft-manual.txt"));
 
     const result = await runExtraction({
       mode: "live",
       uploads: [
         {
-          id: "supplier-spec",
-          filename: "supplier-spec.txt",
+          id: "ARK-1500_supplier-specification",
+          filename: "ARK-1500_supplier-specification.txt",
           mediaType: "text/plain",
           buffer: supplier,
         },
         {
-          id: "draft-manual",
-          filename: "draft-manual.txt",
+          id: "ARK-1500_draft-manual",
+          filename: "ARK-1500_draft-manual.txt",
           mediaType: "text/plain",
           buffer: manual,
         },

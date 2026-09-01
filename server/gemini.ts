@@ -6,6 +6,8 @@ import {
   type ProposalResponse,
 } from "../src/domain/schemas.js";
 
+export const GEMINI_MODEL = "gemini-3.7-flash";
+
 export type GeminiTransport = (prompt: string) => Promise<string>;
 
 export type GeminiErrorCode =
@@ -122,7 +124,7 @@ export function createDefaultTransport(apiKey: string): GeminiTransport {
   const client = new GoogleGenAI({ apiKey });
   return async (prompt: string) => {
     const response = await client.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: GEMINI_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
