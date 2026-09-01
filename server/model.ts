@@ -4,12 +4,66 @@ import {
   type ExtractionResponse,
   type ProposalResponse,
 } from "../src/domain/schemas.js";
+import { ZodError } from "zod";
 
 export const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash-vision-exp";
 export const OPENROUTER_CHAT_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 
 export type ModelTransport = (prompt: string) => Promise<string>;
+
+export type ModelLogEvent =
+  | {
+      phase: "request";
+      model: string;
+      promptChars: number;
+    }
+  | {
+      phase: "response";
+      status: number;
+      durationMs: number;
+      finishReason?: string;
+      contentChars: number;
+      contentPreview: string;
+      emptyContent: boolean;
+      messageKeys?: string[];
+    }
+  | {
+      phase: "parse-fail";
+      attempt: "first" | "repair";
+      contentPreview: string;
+    }
+  | {
+      phase: "schema-fail";
+      issues: Array<{ path: string; message: string }>;
+      contentPreview: string;
+    };
+
+export type ModelLogFn = (event: ModelLogEvent) => void;
+
+const CONTENT_PREVIEW_LIMIT = 500;
+
+export function defaultModelLog(event: ModelLogEvent): void {
+  console.info("[model]", sanitizeLogOutput(JSON.stringify(event)));
+}
+
+export function sanitizeLogOutput(serialized: string): string {
+  return serialized
+    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(/sk-or-v1-[A-Za-z0-9_-]+/g, "[REDACTED_KEY]");
+}
+
+function previewContent(content: string): string {
+  return content.slice(0, CONTENT_PREVIEW_LIMIT);
+}
+
+function messageKeys(
+  message: Record<string, unknown> | undefined,
+): string[] | undefined {
+  if (!message) return undefined;
+  const keys = Object.keys(message).filter((key) => key !== "content" && key !== "role");
+  return keys.length > 0 ? keys : undefined;
+}
 
 export type ModelErrorCode =
   | "missing-key"
@@ -35,6 +89,14 @@ interface ModelCallOptions {
   prompt: string;
   transport?: ModelTransport;
   apiKey?: string;
+  log?: ModelLogFn;
+}
+
+function formatZodIssues(error: ZodError): Array<{ path: string; message: string }> {
+  return error.issues.map((issue) => ({
+    path: issue.path.join("."),
+    message: issue.message,
+  }));
 }
 
 function requireApiKey(apiKey: string | undefined): string {
@@ -102,11 +164,17 @@ function parseJson(raw: string): unknown {
 async function requestStructuredJson(
   prompt: string,
   transport: ModelTransport,
-): Promise<unknown> {
+  log: ModelLogFn = defaultModelLog,
+): Promise<{ parsed: unknown; rawContent: string }> {
   const first = await callTransport(prompt, transport);
   try {
-    return parseJson(first);
+    return { parsed: parseJson(first), rawContent: first };
   } catch {
+    log({
+      phase: "parse-fail",
+      attempt: "first",
+      contentPreview: previewContent(first),
+    });
     const repairPrompt = [
       prompt,
       "",
@@ -114,15 +182,32 @@ async function requestStructuredJson(
     ].join("\n");
     const repaired = await callTransport(repairPrompt, transport);
     try {
-      return parseJson(repaired);
+      return { parsed: parseJson(repaired), rawContent: repaired };
     } catch {
+      log({
+        phase: "parse-fail",
+        attempt: "repair",
+        contentPreview: previewContent(repaired),
+      });
       throw new ModelError("malformed", "The model returned malformed JSON.");
     }
   }
 }
 
-export function createDefaultTransport(apiKey: string): ModelTransport {
+export function createDefaultTransport(
+  apiKey: string,
+  options: { log?: ModelLogFn } = {},
+): ModelTransport {
+  const log = options.log ?? defaultModelLog;
+
   return async (prompt: string) => {
+    log({
+      phase: "request",
+      model: OPENROUTER_MODEL,
+      promptChars: prompt.length,
+    });
+
+    const startedAt = Date.now();
     const response = await fetch(OPENROUTER_CHAT_URL, {
       method: "POST",
       headers: {
@@ -144,9 +229,27 @@ export function createDefaultTransport(apiKey: string): ModelTransport {
     }
 
     const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{
+        finish_reason?: string;
+        message?: Record<string, unknown> & { content?: string };
+      }>;
     };
-    return payload.choices?.[0]?.message?.content ?? "";
+    const choice = payload.choices?.[0];
+    const message = choice?.message;
+    const content = message?.content ?? "";
+
+    log({
+      phase: "response",
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+      finishReason: choice?.finish_reason,
+      contentChars: content.length,
+      contentPreview: previewContent(content),
+      emptyContent: content.length === 0,
+      messageKeys: messageKeys(message),
+    });
+
+    return content;
   };
 }
 
@@ -154,12 +257,24 @@ export async function extractCandidates(
   options: ModelCallOptions,
 ): Promise<ExtractionResponse> {
   const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
+  const log = options.log ?? defaultModelLog;
   const transport =
-    options.transport ?? createDefaultTransport(apiKey);
-  const parsed = await requestStructuredJson(options.prompt, transport);
+    options.transport ?? createDefaultTransport(apiKey, { log });
+  const { parsed, rawContent } = await requestStructuredJson(
+    options.prompt,
+    transport,
+    log,
+  );
   try {
     return extractionResponseSchema.parse(parsed);
-  } catch {
+  } catch (error) {
+    if (error instanceof ZodError) {
+      log({
+        phase: "schema-fail",
+        issues: formatZodIssues(error),
+        contentPreview: previewContent(rawContent),
+      });
+    }
     throw new ModelError("malformed", "The model returned an invalid response.");
   }
 }
@@ -168,12 +283,20 @@ export async function interpretAnswer(
   options: ModelCallOptions,
 ): Promise<ProposalResponse> {
   const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
+  const log = options.log ?? defaultModelLog;
   const transport =
-    options.transport ?? createDefaultTransport(apiKey);
-  const parsed = await requestStructuredJson(options.prompt, transport);
+    options.transport ?? createDefaultTransport(apiKey, { log });
+  const { parsed } = await requestStructuredJson(options.prompt, transport, log);
   try {
     return proposalSchema.parse(parsed);
-  } catch {
+  } catch (error) {
+    if (error instanceof ZodError) {
+      log({
+        phase: "schema-fail",
+        issues: formatZodIssues(error),
+        contentPreview: previewContent(JSON.stringify(parsed)),
+      });
+    }
     throw new ModelError("malformed", "The model returned an invalid response.");
   }
 }

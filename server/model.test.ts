@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDefaultTransport,
+  defaultModelLog,
   extractCandidates,
   interpretAnswer,
   ModelError,
   OPENROUTER_MODEL,
+  sanitizeLogOutput,
 } from "./model.js";
 
 const validExtraction = JSON.stringify({
@@ -85,6 +87,69 @@ describe("createDefaultTransport", () => {
       extractCandidates({ prompt: "extract", apiKey: "or-test-key" }),
     ).rejects.toMatchObject({ code: "quota" });
   });
+
+  it("logs request and response with durationMs and content preview", async () => {
+    const content = JSON.stringify({ candidates: [] });
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              finish_reason: "stop",
+              message: { content, reasoning: "hidden chain" },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.fn();
+
+    const transport = createDefaultTransport("or-test-key", { log });
+    await transport("extract this dossier");
+
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log.mock.calls[0]?.[0]).toMatchObject({
+      phase: "request",
+      model: OPENROUTER_MODEL,
+      promptChars: "extract this dossier".length,
+    });
+    expect(log.mock.calls[1]?.[0]).toMatchObject({
+      phase: "response",
+      status: 200,
+      finishReason: "stop",
+      contentChars: content.length,
+      contentPreview: content,
+      emptyContent: false,
+      messageKeys: expect.arrayContaining(["reasoning"]),
+    });
+    expect(typeof log.mock.calls[1]?.[0]?.durationMs).toBe("number");
+  });
+
+  it("never logs api keys or authorization headers", async () => {
+    const secret = "or-secret-key-do-not-log";
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"candidates":[]}' } }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.fn();
+
+    const transport = createDefaultTransport(secret, { log });
+    await transport("extract this dossier");
+
+    for (const call of log.mock.calls) {
+      const serialized = JSON.stringify(call[0]);
+      expect(serialized).not.toContain(secret);
+      expect(serialized).not.toMatch(/authorization/i);
+      expect(serialized).not.toContain("Bearer ");
+    }
+  });
 });
 
 describe("extractCandidates", () => {
@@ -126,6 +191,37 @@ describe("extractCandidates", () => {
       name: "ModelError",
       code: "malformed",
     });
+  });
+
+  it("logs schema-fail issues when Zod rejects a parsed payload", async () => {
+    const invalidPayload = JSON.stringify({ candidates: "nope" });
+    const transport = transportReturning(invalidPayload);
+    const log = vi.fn();
+
+    await expect(
+      extractCandidates({
+        prompt: "extract",
+        transport,
+        apiKey: "test-key",
+        log,
+      }),
+    ).rejects.toMatchObject({
+      code: "malformed",
+      message: "The model returned an invalid response.",
+    });
+
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phase: "schema-fail",
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            path: expect.any(String),
+            message: expect.any(String),
+          }),
+        ]),
+        contentPreview: invalidPayload,
+      }),
+    );
   });
 
   it("requires OPENROUTER_API_KEY for live calls", async () => {
@@ -222,5 +318,32 @@ describe("ModelError", () => {
       expect(error).toBeInstanceOf(ModelError);
       expect(String(error)).toContain("recorded");
     }
+  });
+});
+
+describe("defaultModelLog", () => {
+  it("redacts bearer tokens from serialized output", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    defaultModelLog({
+      phase: "parse-fail",
+      attempt: "first",
+      contentPreview: "Authorization: Bearer sk-or-v1-abc123",
+    });
+
+    const line = String(info.mock.calls[0]?.[1]);
+    expect(line).not.toContain("sk-or-v1-abc123");
+    expect(line).toContain("[REDACTED");
+
+    info.mockRestore();
+  });
+
+  it("redacts api keys from arbitrary serialized strings", () => {
+    const sanitized = sanitizeLogOutput(
+      '{"token":"sk-or-v1-secret-value","auth":"Bearer abc.def.ghi"}',
+    );
+    expect(sanitized).not.toContain("sk-or-v1-secret-value");
+    expect(sanitized).not.toContain("abc.def.ghi");
+    expect(sanitized).toContain("[REDACTED_KEY]");
+    expect(sanitized).toContain("Bearer [REDACTED]");
   });
 });
