@@ -65,8 +65,8 @@ type InterpretResponseBody = {
 };
 
 describe("POST /api/extract recorded", () => {
-  it("returns dossier snapshot without GEMINI_KEY", async () => {
-    delete process.env.GEMINI_KEY;
+  it("returns dossier snapshot without OPENROUTER_API_KEY", async () => {
+    delete process.env.OPENROUTER_API_KEY;
     const app = createApp({ fixtureDir });
 
     const response = await app.request("/api/extract", {
@@ -153,8 +153,8 @@ describe("POST /api/extract intake validation", () => {
 });
 
 describe("POST /api/extract live missing key", () => {
-  it("returns a missing-key error naming GEMINI_KEY and recorded mode", async () => {
-    delete process.env.GEMINI_KEY;
+  it("returns a missing-key error naming OPENROUTER_API_KEY and recorded mode", async () => {
+    delete process.env.OPENROUTER_API_KEY;
     const app = createApp({ fixtureDir });
 
     const response = await app.request("/api/extract", {
@@ -167,7 +167,7 @@ describe("POST /api/extract live missing key", () => {
     expect(await response.json()).toMatchObject({
       error: {
         code: "missing-key",
-        envVar: "GEMINI_KEY",
+        envVar: "OPENROUTER_API_KEY",
         message: expect.stringContaining("recorded"),
       },
     });

@@ -130,11 +130,11 @@ export function ExtractionProgress({
                 "color-mix(in oklch, var(--st-conflict) 45%, var(--border))",
             }}
           >
-            <h3>Live extraction needs a Gemini API key</h3>
+            <h3>Live extraction needs an OpenRouter API key</h3>
             <p className="note mt-[8px]">
               The key is read on the server only, never in the browser. Add{" "}
               <span className="meta text-[var(--fg)]">
-                {error.envVar ?? "GEMINI_KEY"}=…
+                {error.envVar ?? "OPENROUTER_API_KEY"}=…
               </span>{" "}
               to{" "}
               <span className="meta text-[var(--fg)]">.env.local</span> and

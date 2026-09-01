@@ -92,8 +92,8 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
               <span>
                 <strong>Live extraction</strong>
                 <p>
-                  Sends the same two documents to Gemini. Requires a server-side
-                  API key.
+                  Sends the same two documents to Gemini via OpenRouter.
+                  Requires a server-side OpenRouter API key.
                 </p>
               </span>
             </label>

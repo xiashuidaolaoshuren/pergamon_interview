@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import {
   extractionResponseSchema,
   proposalSchema,
@@ -6,7 +5,9 @@ import {
   type ProposalResponse,
 } from "../src/domain/schemas.js";
 
-export const GEMINI_MODEL = "gemini-3.7-flash";
+export const GEMINI_MODEL = "google/gemini-3.7-flash";
+export const OPENROUTER_CHAT_URL =
+  "https://openrouter.ai/api/v1/chat/completions";
 
 export type GeminiTransport = (prompt: string) => Promise<string>;
 
@@ -40,8 +41,8 @@ function requireApiKey(apiKey: string | undefined): string {
   if (apiKey && apiKey.trim().length > 0) return apiKey.trim();
   throw new GeminiError(
     "missing-key",
-    "GEMINI_KEY is not configured. Use recorded extraction mode or set GEMINI_KEY.",
-    "GEMINI_KEY",
+    "OPENROUTER_API_KEY is not configured. Use recorded extraction mode or set OPENROUTER_API_KEY.",
+    "OPENROUTER_API_KEY",
   );
 }
 
@@ -59,7 +60,7 @@ function mapTransportError(error: unknown): GeminiError {
   if (status === 401 || status === 403) {
     return new GeminiError("auth", "Gemini authentication failed.");
   }
-  if (status === 429) {
+  if (status === 402 || status === 429) {
     return new GeminiError("quota", "Gemini quota or rate limit exceeded.");
   }
   if (error instanceof TypeError) {
@@ -121,23 +122,39 @@ async function requestStructuredJson(
 }
 
 export function createDefaultTransport(apiKey: string): GeminiTransport {
-  const client = new GoogleGenAI({ apiKey });
   return async (prompt: string) => {
-    const response = await client.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
+    const response = await fetch(OPENROUTER_CHAT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        model: GEMINI_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        reasoning: { effort: "low" },
+      }),
     });
-    return response.text ?? "";
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw Object.assign(new Error(body || response.statusText), {
+        status: response.status,
+      });
+    }
+
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    return payload.choices?.[0]?.message?.content ?? "";
   };
 }
 
 export async function extractCandidates(
   options: GeminiCallOptions,
 ): Promise<ExtractionResponse> {
-  const apiKey = requireApiKey(options.apiKey ?? process.env.GEMINI_KEY);
+  const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
   const transport =
     options.transport ?? createDefaultTransport(apiKey);
   const parsed = await requestStructuredJson(options.prompt, transport);
@@ -151,7 +168,7 @@ export async function extractCandidates(
 export async function interpretAnswer(
   options: GeminiCallOptions,
 ): Promise<ProposalResponse> {
-  const apiKey = requireApiKey(options.apiKey ?? process.env.GEMINI_KEY);
+  const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
   const transport =
     options.transport ?? createDefaultTransport(apiKey);
   const parsed = await requestStructuredJson(options.prompt, transport);

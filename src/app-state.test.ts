@@ -119,12 +119,12 @@ describe("appReducer", () => {
       type: "extract-failure",
       error: {
         code: "missing-key",
-        message: "Gemini API key is not configured.",
-        envVar: "GEMINI_KEY",
+        message: "OpenRouter API key is not configured.",
+        envVar: "OPENROUTER_API_KEY",
       },
     });
 
-    expect(next.error?.envVar).toBe("GEMINI_KEY");
+    expect(next.error?.envVar).toBe("OPENROUTER_API_KEY");
   });
 
   it("stays in interview with essentials clear when only supporting fields remain unresolved", () => {

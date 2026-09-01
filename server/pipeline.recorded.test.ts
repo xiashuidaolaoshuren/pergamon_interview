@@ -10,8 +10,8 @@ const fixtureDir = join(
 );
 
 describe("runExtraction recorded replay", () => {
-  it("replays bundled fixtures without GEMINI_KEY and returns dossier state", async () => {
-    delete process.env.GEMINI_KEY;
+  it("replays bundled fixtures without OPENROUTER_API_KEY and returns dossier state", async () => {
+    delete process.env.OPENROUTER_API_KEY;
 
     const result = await runExtraction({
       mode: "recorded",

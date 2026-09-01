@@ -10,6 +10,9 @@ test("recorded kettle: intake through conflict, gap, power, and report", async (
     if (url.includes("generativelanguage.googleapis.com")) {
       throw new Error(`Live Gemini host must not be called: ${url}`);
     }
+    if (url.includes("openrouter.ai")) {
+      throw new Error(`Live OpenRouter host must not be called: ${url}`);
+    }
   });
 
   page.on("response", async (response) => {

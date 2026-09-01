@@ -167,8 +167,8 @@ describe("ExtractionProgress", () => {
         outcome="failed"
         error={{
           code: "missing-key",
-          message: "Gemini API key is not configured.",
-          envVar: "GEMINI_KEY",
+          message: "OpenRouter API key is not configured.",
+          envVar: "OPENROUTER_API_KEY",
         }}
         counts={null}
         failedSources={undefined}
@@ -182,9 +182,11 @@ describe("ExtractionProgress", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /live extraction needs a gemini api key/i }),
+      screen.getByRole("heading", {
+        name: /live extraction needs an openrouter api key/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/GEMINI_KEY=…/)).toBeInTheDocument();
+    expect(screen.getByText(/OPENROUTER_API_KEY=…/)).toBeInTheDocument();
     expect(screen.getByText(/\.env\.local/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry live extraction/i }));

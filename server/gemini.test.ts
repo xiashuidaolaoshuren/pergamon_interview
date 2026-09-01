@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createDefaultTransport,
   extractCandidates,
+  GEMINI_MODEL,
   GeminiError,
   interpretAnswer,
 } from "./gemini.js";
@@ -35,6 +37,53 @@ function transportReturning(...responses: string[]) {
     return next;
   });
 }
+
+describe("createDefaultTransport", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("POSTs OpenRouter chat completions with google/gemini-3.7-flash and json_object", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"candidates":[]}' } }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const transport = createDefaultTransport("or-test-key");
+    await transport("extract this dossier");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers).toMatchObject({
+      Authorization: "Bearer or-test-key",
+      "Content-Type": "application/json",
+    });
+    const body = JSON.parse(String(init?.body));
+    expect(body.model).toBe(GEMINI_MODEL);
+    expect(body.response_format).toEqual({ type: "json_object" });
+    expect(body.messages).toEqual([
+      { role: "user", content: "extract this dossier" },
+    ]);
+  });
+
+  it("maps OpenRouter 402 payment required to quota", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response("insufficient credits", { status: 402 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      extractCandidates({ prompt: "extract", apiKey: "or-test-key" }),
+    ).rejects.toMatchObject({ code: "quota" });
+  });
+});
 
 describe("extractCandidates", () => {
   it("parses structured extraction JSON from the transport", async () => {
@@ -77,7 +126,7 @@ describe("extractCandidates", () => {
     });
   });
 
-  it("requires GEMINI_KEY for live calls", async () => {
+  it("requires OPENROUTER_API_KEY for live calls", async () => {
     await expect(
       extractCandidates({
         prompt: "extract",
@@ -85,7 +134,7 @@ describe("extractCandidates", () => {
       }),
     ).rejects.toMatchObject({
       code: "missing-key",
-      envVar: "GEMINI_KEY",
+      envVar: "OPENROUTER_API_KEY",
     });
   });
 

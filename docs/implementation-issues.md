@@ -236,6 +236,7 @@ Suggested use: limitations / AI-assisted workflow, one short anecdote.
 - Cause 1: hardcoded `gemini-2.0-flash` after Google’s 1 June 2026 shutdown.
 - Cause 2 (same UI): `400 FAILED_PRECONDITION` “User location is not supported for the API use.”
 - Response: swap to `gemini-3.7-flash`; keep recorded replay as the deterministic demo; treat live Gemini as best-effort from a supported region.
+- **Update (Sep 2026):** Live extract now routes through OpenRouter (`google/gemini-3.7-flash`) with `OPENROUTER_API_KEY` in `.env.local`, bypassing the Google Developer API geo block without changing the control plane.
 - What we would do next: map location/precondition (and unknown-model 404) to distinct codes and copy, instead of `gemini-unavailable`.
 
 ---
