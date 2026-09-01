@@ -4,6 +4,7 @@ import { ModeBadge } from "@/components/ModeBadge";
 import { authoringReadiness } from "@/domain/readiness.js";
 import type { DossierField, Evidence, ExtractionMode } from "@/domain/types.js";
 import { DossierPanel } from "./DossierPanel.js";
+import { formatFieldValue } from "./source-labels.js";
 import { SourceDrawer } from "./SourceDrawer.js";
 
 export interface ReadinessReportProps {
@@ -114,9 +115,9 @@ export function ReadinessReport({
     setDrawerOpen(true);
   }
 
-  function openRejected(fieldKey: string) {
+  function openRejected(fieldKey: string, rejectedIndex = 0) {
     const entry = dossier.find((item) => item.key === fieldKey);
-    const rejected = entry?.rejectedCandidates[0];
+    const rejected = entry?.rejectedCandidates[rejectedIndex];
     if (!entry || !rejected) return;
     setDrawer({
       kind: "Rejected candidate",
@@ -229,7 +230,7 @@ export function ReadinessReport({
                   <tr key={entry.key}>
                     <td>{entry.label}</td>
                     <td className="num">
-                      {String(entry.normalizedValue ?? entry.originalValue ?? "")}
+                      {formatFieldValue(entry)}
                     </td>
                     <td>
                       <span className={`pill ${STATUS_PILL[entry.status]}`}>
@@ -309,7 +310,7 @@ export function ReadinessReport({
                 <button
                   type="button"
                   className="src-link"
-                  onClick={() => openRejected(entry.key)}
+                  onClick={() => openRejected(entry.key, index)}
                 >
                   details
                 </button>

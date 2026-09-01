@@ -1,6 +1,7 @@
 import type {
   DossierField,
   ExtractionMode,
+  Proposal,
   RejectedCandidate,
 } from "./domain/types.js";
 
@@ -102,4 +103,33 @@ export async function extractUpload(
     method: "POST",
     body: form,
   });
+}
+
+export interface InterpretResponse {
+  proposals: Proposal[];
+}
+
+export async function interpretAnswer(
+  fieldKey: string,
+  answerText: string,
+  dossier: DossierField[],
+): Promise<InterpretResponse> {
+  try {
+    const response = await fetch("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fieldKey, answerText, dossier }),
+    });
+
+    if (!response.ok) {
+      throw await parseApiError(response);
+    }
+
+    return response.json() as Promise<InterpretResponse>;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError("network", "Network request failed.");
+  }
 }

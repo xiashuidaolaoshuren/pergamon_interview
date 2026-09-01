@@ -1,11 +1,12 @@
 import type { DossierField, Evidence, FieldStatus } from "@/domain/types.js";
+import { formatFieldValue, sourceDocLabel } from "./source-labels.js";
 
 export interface DossierPanelProps {
   dossier: DossierField[];
   flashKey?: string;
   flashEpoch?: number;
   onOpenSource: (evidence: Evidence, label: string) => void;
-  onOpenRejected: (fieldKey: string) => void;
+  onOpenRejected: (fieldKey: string, rejectedIndex?: number) => void;
 }
 
 const STATUS_LABEL: Record<FieldStatus, string> = {
@@ -25,18 +26,7 @@ const STATUS_PILL: Record<FieldStatus, string> = {
 };
 
 function formatScalarValue(field: DossierField): string {
-  const value = field.normalizedValue ?? field.originalValue;
-  if (value === null || value === undefined) {
-    return "";
-  }
-  return String(value);
-}
-
-function sourceDocLabel(documentId: string): string {
-  if (/\.(pdf|txt)$/i.test(documentId)) {
-    return documentId;
-  }
-  return `${documentId}.pdf`;
+  return formatFieldValue(field);
 }
 
 function groupOrder(dossier: DossierField[]): string[] {
@@ -104,7 +94,9 @@ export function DossierPanel({
                     ) : null}
                     {field.status === "user-provided" ? (
                       <div className="d-sub">
-                        from the interview · unsupported by any uploaded source
+                        {field.userSourceDescription
+                          ? `from ${field.userSourceDescription}`
+                          : "from the interview · unsupported by any uploaded source"}
                       </div>
                     ) : null}
                     {field.evidence.length > 0 ? (

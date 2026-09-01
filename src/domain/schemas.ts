@@ -77,6 +77,7 @@ export const dossierFieldSchema = z.object({
   conflictCandidates: z.array(conflictCandidateSchema).default([]),
   adjudicatedLosers: z.array(conflictCandidateSchema).default([]),
   resolutionHistory: z.array(resolutionEventSchema),
+  userSourceDescription: z.string().nullable().optional(),
 });
 
 export const dossierSchema = z.array(dossierFieldSchema);

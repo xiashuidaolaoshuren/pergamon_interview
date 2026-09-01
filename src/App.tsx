@@ -40,8 +40,19 @@ function createInitialState(): AppState {
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
   const lastRequest = useRef<LastExtractRequest | null>(null);
+  const extractionGeneration = useRef(0);
   const [animationSession, setAnimationSession] = useState(0);
+  const [sessionPersistenceWarning, setSessionPersistenceWarning] = useState(false);
   const postIntake = state.phase !== "intake";
+
+  const handleRestart = useCallback(() => {
+    extractionGeneration.current += 1;
+    dispatch({ type: "restart" });
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [state.phase]);
 
   useEffect(() => {
     if (state.phase === "intake") {
@@ -49,17 +60,21 @@ export default function App() {
       return;
     }
 
-    saveSession({
+    const result = saveSession({
       dossier: state.dossier,
       rejected: state.rejected,
       mode: state.mode,
       interview: state.interview,
       excerpts: state.dossier.flatMap((field) => field.evidence),
     });
+    if (result.warned) {
+      setSessionPersistenceWarning(true);
+    }
   }, [state]);
 
   const startExtraction = useCallback(
     async (mode: ExtractionMode, files?: File[]) => {
+      const generation = ++extractionGeneration.current;
       lastRequest.current = { mode, files };
       setAnimationSession((session) => session + 1);
       dispatch({ type: "start-extract", mode });
@@ -68,6 +83,10 @@ export default function App() {
         const result = files
           ? await extractUpload(files)
           : await extractFixture(mode);
+
+        if (generation !== extractionGeneration.current) {
+          return;
+        }
 
         dispatch({
           type: "extract-success",
@@ -79,6 +98,10 @@ export default function App() {
           mode: result.mode,
         });
       } catch (error) {
+        if (generation !== extractionGeneration.current) {
+          return;
+        }
+
         const apiError =
           error instanceof ApiError
             ? error
@@ -137,7 +160,7 @@ export default function App() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => dispatch({ type: "restart" })}
+                onClick={handleRestart}
               >
                 Restart session
               </Button>
@@ -146,7 +169,17 @@ export default function App() {
         </div>
       </header>
 
-      <main className="page-wrap flex flex-1 flex-col">
+      {sessionPersistenceWarning ? (
+        <div
+          className="page-wrap py-[10px] text-[13px] text-[var(--st-unverified)]"
+          role="status"
+        >
+          Session could not be saved to this browser&apos;s storage. Your
+          progress survives refresh only while this tab stays open.
+        </div>
+      ) : null}
+
+      <main className="flex w-full flex-1 flex-col">
         {state.phase === "intake" ? (
           <Intake
             onStartBundled={handleStartBundled}
@@ -171,7 +204,7 @@ export default function App() {
             animationSession={animationSession}
             onRetry={handleRetryExtraction}
             onUseRecorded={handleUseRecorded}
-            onBackToIntake={() => dispatch({ type: "restart" })}
+            onBackToIntake={handleRestart}
             onOpenInterview={() => dispatch({ type: "open-interview" })}
           />
         ) : null}
@@ -180,7 +213,7 @@ export default function App() {
           <InsufficientEvidence
             dossier={state.dossier}
             failedSources={state.failedSources}
-            onAddDocument={() => dispatch({ type: "restart" })}
+            onAddDocument={handleRestart}
             onContinueAnyway={() => dispatch({ type: "continue-anyway" })}
           />
         ) : null}
@@ -196,6 +229,9 @@ export default function App() {
             onContinuePastBudget={() =>
               dispatch({ type: "continue-past-budget" })
             }
+            onContinueSupporting={() =>
+              dispatch({ type: "continue-supporting" })
+            }
             onFinish={() => dispatch({ type: "finish" })}
           />
         ) : null}
@@ -205,7 +241,7 @@ export default function App() {
             dossier={state.dossier}
             mode={state.mode}
             onBackToInterview={() => dispatch({ type: "open-interview" })}
-            onRestart={() => dispatch({ type: "restart" })}
+            onRestart={handleRestart}
           />
         ) : null}
       </main>

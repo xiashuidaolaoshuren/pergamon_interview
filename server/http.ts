@@ -170,6 +170,8 @@ export function createApp(deps: HttpDeps) {
     ),
   );
 
+  app.get("/health", (c) => c.text("ok"));
+
   app.use(
     "*",
     bodyLimit({

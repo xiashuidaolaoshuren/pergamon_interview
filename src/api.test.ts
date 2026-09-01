@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, extractFixture, extractUpload } from "./api.js";
+import { ApiError, extractFixture, extractUpload, interpretAnswer } from "./api.js";
 
 describe("extractFixture", () => {
   afterEach(() => {
@@ -124,5 +124,68 @@ describe("extractUpload", () => {
     expect(form.getAll("files")).toHaveLength(2);
     expect((form.getAll("files")[0] as File).name).toBe("one.pdf");
     expect((form.getAll("files")[1] as File).name).toBe("two.txt");
+  });
+});
+
+describe("interpretAnswer", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("posts fieldKey answerText and dossier, then parses proposals", async () => {
+    const dossier = [{ key: "importer-contact", status: "missing" }];
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          proposals: [
+            {
+              fieldKey: "importer-contact",
+              proposedValue: "Acme Imports GmbH",
+              answerText: "Acme Imports GmbH — rated power 2200 W",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await interpretAnswer(
+      "importer-contact",
+      "Acme Imports GmbH — rated power 2200 W",
+      dossier as never,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldKey: "importer-contact",
+        answerText: "Acme Imports GmbH — rated power 2200 W",
+        dossier,
+      }),
+    });
+    expect(result.proposals).toHaveLength(1);
+  });
+
+  it("rejects with rephrase when interpretation fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "rephrase",
+              message: "Could not interpret the answer. Please rephrase.",
+            },
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(
+      interpretAnswer("importer-contact", "???", [] as never),
+    ).rejects.toMatchObject({ code: "rephrase" });
   });
 });

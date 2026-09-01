@@ -15,6 +15,12 @@ export interface QuestionPanelProps {
   onAnswer: (event: ApplyEvent) => void;
   onLeaveUnresolved: (fieldKey: string) => void;
   onOpenSource: (evidence: Evidence, label: string) => void;
+  onSubmitMissingAnswer?: (
+    fieldKey: string,
+    answerText: string,
+    sourceDescription?: string,
+  ) => void | Promise<void>;
+  interpretError?: string | null;
 }
 
 function fieldDefinition(fieldKey: string) {
@@ -145,9 +151,9 @@ function ConflictQuestion({
             const trimmed = customValue.trim();
             if (!trimmed) return;
             onAnswer({
-              type: "provide-answer",
+              type: "adjudicate",
               fieldKey: field.key,
-              value: trimmed,
+              selectedValue: trimmed,
             });
           }}
         >
@@ -171,11 +177,19 @@ function MissingQuestion({
   dossier,
   onAnswer,
   onLeaveUnresolved,
+  onSubmitMissingAnswer,
+  interpretError,
 }: {
   field: DossierField;
   dossier: DossierField[];
   onAnswer: (event: ApplyEvent) => void;
   onLeaveUnresolved: (fieldKey: string) => void;
+  onSubmitMissingAnswer?: (
+    fieldKey: string,
+    answerText: string,
+    sourceDescription?: string,
+  ) => void | Promise<void>;
+  interpretError?: string | null;
 }) {
   const answerId = useId();
   const sourceId = useId();
@@ -222,7 +236,17 @@ function MissingQuestion({
       <div className="row flex-wrap">
         <Button
           type="button"
-          onClick={() => onAnswer(parseAnswer(field.key, answerText))}
+          onClick={() => {
+            if (onSubmitMissingAnswer) {
+              void onSubmitMissingAnswer(
+                field.key,
+                answerText,
+                sourceText.trim() || undefined,
+              );
+              return;
+            }
+            onAnswer(parseAnswer(field.key, answerText));
+          }}
         >
           Submit answer
         </Button>
@@ -245,6 +269,11 @@ function MissingQuestion({
           </Button>
         ) : null}
       </div>
+      {interpretError ? (
+        <p className="note text-[var(--danger)]" role="alert">
+          {interpretError}
+        </p>
+      ) : null}
     </>
   );
 }
@@ -355,6 +384,8 @@ export function QuestionPanel({
   onAnswer,
   onLeaveUnresolved,
   onOpenSource,
+  onSubmitMissingAnswer,
+  interpretError,
 }: QuestionPanelProps) {
   const def = fieldDefinition(field.key);
   const fallbackQuestion =
@@ -399,6 +430,8 @@ export function QuestionPanel({
           dossier={dossier}
           onAnswer={onAnswer}
           onLeaveUnresolved={onLeaveUnresolved}
+          onSubmitMissingAnswer={onSubmitMissingAnswer}
+          interpretError={interpretError}
         />
       ) : null}
       {question.shape === "unverified" ? (

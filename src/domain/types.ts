@@ -73,6 +73,7 @@ export interface DossierField {
   conflictCandidates: ConflictCandidate[];
   adjudicatedLosers: ConflictCandidate[];
   resolutionHistory: ResolutionEvent[];
+  userSourceDescription?: string | null;
 }
 
 export interface ConflictCandidate {
@@ -109,4 +110,8 @@ export interface InterviewState {
   questionCount: number;
   continuePastBudget: boolean;
   completionReason: string | null;
+  essentialsClear?: boolean;
+  continueSupporting?: boolean;
+  pausedForBudget?: boolean;
+  exhaustedFieldKeys?: string[];
 }

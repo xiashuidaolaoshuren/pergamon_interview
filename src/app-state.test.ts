@@ -127,6 +127,54 @@ describe("appReducer", () => {
     expect(next.error?.envVar).toBe("GEMINI_KEY");
   });
 
+  it("stays in interview with essentials clear when only supporting fields remain unresolved", () => {
+    const dossier = [
+      { ...emptyField("product-name"), status: "confirmed" as const, originalValue: "Kettle", normalizedValue: "Kettle" },
+      {
+        ...emptyField("importer-contact"),
+        status: "user-provided" as const,
+        originalValue: "Acme Imports GmbH",
+        normalizedValue: "Acme Imports GmbH",
+      },
+      {
+        ...emptyField("rated-power"),
+        status: "unverified" as const,
+        originalValue: "2200 W",
+        normalizedValue: "2200 W",
+      },
+      {
+        ...emptyField("primary-materials"),
+        status: "missing" as const,
+        tier: "supporting" as const,
+        group: "Electrical and Physical Information",
+        valueKind: "list" as const,
+      },
+    ];
+    const state = {
+      ...initialAppState,
+      phase: "interview" as const,
+      dossier,
+      interview: {
+        ...initialAppState.interview,
+        phase: "interview" as const,
+        questionCount: 4,
+      },
+    };
+
+    const next = appReducer(state, {
+      type: "answer",
+      event: {
+        type: "provide-answer",
+        fieldKey: "rated-power",
+        value: "2200 W",
+      },
+    });
+
+    expect(next.phase).toBe("interview");
+    expect(next.interview.essentialsClear).toBe(true);
+    expect(next.interview.completionReason).toBeNull();
+  });
+
   it("moves to report when nextQuestion is null after an answer", () => {
     const extracting = appReducer(initialAppState, {
       type: "start-extract",

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import userEvent from "@testing-library/user-event";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KETTLE_FIELDS } from "@/domain/fields.js";
@@ -228,6 +229,59 @@ describe("ReadinessReport", () => {
       screen.getByText(
         /rejected candidate “2200 W”: Quote not found on the cited page/i,
       ),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the selected rejected candidate details instead of always using index zero", async () => {
+    const user = userEvent.setup();
+    const dossier = readyDossier().map((entry) => {
+      if (entry.key !== "rated-power") return entry;
+      return field("rated-power", {
+        status: "unverified",
+        originalValue: "2200 W",
+        normalizedValue: "2200 W",
+        rejectedCandidates: [
+          {
+            fieldKey: "rated-power",
+            value: "2100 W",
+            citation: {
+              documentId: "ARK-1500_supplier-specification.pdf",
+              page: 1,
+              quote: "2100 W",
+            },
+            rejectionReason: "First rejection reason.",
+          },
+          {
+            fieldKey: "rated-power",
+            value: "2200 W",
+            citation: {
+              documentId: "ARK-1500_draft-manual.pdf",
+              page: 3,
+              quote: "2200 W",
+            },
+            rejectionReason: "Second rejection reason.",
+          },
+        ],
+      });
+    });
+
+    render(
+      <ReadinessReport
+        dossier={dossier}
+        mode="recorded"
+        onBackToInterview={vi.fn()}
+        onRestart={vi.fn()}
+      />,
+    );
+
+    const detailButtons = screen.getAllByRole("button", { name: /details/i });
+    await user.click(detailButtons[1]!);
+
+    expect(
+      screen.getByText(/ARK-1500_draft-manual\.pdf · cited page 3/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Rejected: Second rejection reason\./i),
     ).toBeInTheDocument();
   });
 

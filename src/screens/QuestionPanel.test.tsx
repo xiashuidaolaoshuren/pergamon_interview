@@ -69,7 +69,7 @@ describe("QuestionPanel", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /which capacity is correct for the hk-1750/i,
+        name: /which capacity is correct for the ark-1500/i,
       }),
     ).toBeInTheDocument();
     expect(

@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { ApiError, interpretAnswer } from "@/api.js";
 import { Button } from "@/components/ui/button";
 import type { ApplyEvent } from "@/domain/apply.js";
-import { nextQuestion, shouldPause } from "@/domain/planner.js";
+import { needsInterpretation, parseAnswer } from "@/domain/apply.js";
+import { nextQuestion } from "@/domain/planner.js";
 import type { DossierField, Evidence, Proposal } from "@/domain/types.js";
 import type { InterviewState } from "@/domain/types.js";
 import { BudgetPause } from "./BudgetPause.js";
@@ -16,6 +18,7 @@ export interface InterviewWorkspaceProps {
   onAnswer: (event: ApplyEvent) => void;
   onLeaveUnresolved: (fieldKey: string) => void;
   onContinuePastBudget: () => void;
+  onContinueSupporting: () => void;
   onFinish: () => void;
 }
 
@@ -64,6 +67,7 @@ export function InterviewWorkspace({
   onAnswer,
   onLeaveUnresolved,
   onContinuePastBudget,
+  onContinueSupporting,
   onFinish,
 }: InterviewWorkspaceProps) {
   const [drawer, setDrawer] = useState<DrawerState>(EMPTY_DRAWER);
@@ -71,6 +75,7 @@ export function InterviewWorkspace({
   const [pendingProposals, setPendingProposals] = useState<Proposal[] | null>(
     null,
   );
+  const [interpretError, setInterpretError] = useState<string | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [flashEpoch, setFlashEpoch] = useState(0);
 
@@ -83,7 +88,10 @@ export function InterviewWorkspace({
     ? dossier.find((field) => field.key === question.fieldKey)
     : undefined;
 
-  const showBudgetPause = shouldPause(interview) && question !== null;
+  const showBudgetPause =
+    interview.pausedForBudget === true && !interview.continuePastBudget;
+  const showEssentialsClear =
+    interview.essentialsClear === true && !question && !showBudgetPause;
 
   function openEvidence(evidence: Evidence, label: string) {
     setDrawer({
@@ -97,9 +105,9 @@ export function InterviewWorkspace({
     setDrawerOpen(true);
   }
 
-  function openRejected(fieldKey: string) {
+  function openRejected(fieldKey: string, rejectedIndex = 0) {
     const field = dossier.find((entry) => entry.key === fieldKey);
-    const rejected = field?.rejectedCandidates[0];
+    const rejected = field?.rejectedCandidates[rejectedIndex];
     if (!field || !rejected) return;
 
     setDrawer({
@@ -121,6 +129,47 @@ export function InterviewWorkspace({
       setFlashKey(null);
     }
     onAnswer(event);
+  }
+
+  async function handleMissingSubmit(
+    fieldKey: string,
+    answerText: string,
+    sourceDescription?: string,
+  ) {
+    setInterpretError(null);
+    const parsed = parseAnswer(fieldKey, answerText);
+    if (parsed.type !== "provide-answer") {
+      handleAnswer(parsed);
+      return;
+    }
+    if (!needsInterpretation(fieldKey, answerText)) {
+      handleAnswer({
+        type: "provide-answer",
+        fieldKey,
+        value: parsed.value,
+        sourceDescription,
+      });
+      return;
+    }
+
+    try {
+      const { proposals } = await interpretAnswer(
+        fieldKey,
+        answerText.trim(),
+        dossier,
+      );
+      if (proposals.length === 0) {
+        setInterpretError("Could not interpret the answer. Please rephrase.");
+        return;
+      }
+      setPendingProposals(proposals);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "rephrase") {
+        setInterpretError(error.message);
+        return;
+      }
+      setInterpretError("Could not interpret the answer. Please rephrase.");
+    }
   }
 
   return (
@@ -156,21 +205,27 @@ export function InterviewWorkspace({
                 onAnswer={handleAnswer}
                 onLeaveUnresolved={onLeaveUnresolved}
                 onOpenSource={openEvidence}
+                onSubmitMissingAnswer={handleMissingSubmit}
+                interpretError={interpretError}
               />
-            ) : (
+            ) : showEssentialsClear ? (
               <div className="banner stack">
                 <h3>Every essential field is resolved.</h3>
                 <p className="note text-[var(--fg)]">
                   What remains is supporting information — it enriches the dossier
-                  and never blocks readiness. Finish to view the readiness report.
+                  and never blocks readiness. Finish to view the readiness report,
+                  or continue with supporting fields.
                 </p>
                 <div className="row">
-                  <Button type="button" onClick={onFinish}>
+                  <Button type="button" onClick={onContinueSupporting}>
+                    Continue with supporting fields
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={onFinish}>
                     Finish and view report
                   </Button>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
 
           <aside className="dossier">

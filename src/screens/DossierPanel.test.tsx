@@ -72,6 +72,26 @@ describe("DossierPanel", () => {
     expect(screen.getByText("Conflicting")).toBeInTheDocument();
   });
 
+  it("shows user-provided source description when present", () => {
+    render(
+      <DossierPanel
+        dossier={[
+          field("importer-contact", "Importer or responsible-party contact", {
+            status: "user-provided",
+            valueKind: "prose",
+            originalValue: "Acme Imports GmbH",
+            normalizedValue: "Acme Imports GmbH",
+            userSourceDescription: "purchase order PO-2214",
+          }),
+        ]}
+        onOpenSource={vi.fn()}
+        onOpenRejected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/purchase order PO-2214/i)).toBeInTheDocument();
+  });
+
   it("applies flash class to the matching dossier row", () => {
     render(
       <DossierPanel
@@ -138,6 +158,59 @@ describe("DossierPanel", () => {
         name: "ARK-1500_supplier-specification.pdf p.1",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("preserves bundled TXT filenames without inventing a PDF suffix", () => {
+    render(
+      <DossierPanel
+        dossier={[
+          field("intended-use", "Intended use", {
+            status: "confirmed",
+            valueKind: "prose",
+            originalValue: "Boiling water",
+            normalizedValue: "Boiling water",
+            evidence: [
+              {
+                documentId: "ARK-1500_supplier-specification.txt",
+                page: 2,
+                quote: "Boiling water",
+                surroundingWindow: "Intended use: boiling water",
+              },
+            ],
+          }),
+        ]}
+        onOpenSource={vi.fn()}
+        onOpenRejected={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: "ARK-1500_supplier-specification.txt p.2",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\.txt\.pdf/i)).not.toBeInTheDocument();
+  });
+
+  it("joins list field values with middle dots", () => {
+    render(
+      <DossierPanel
+        dossier={[
+          field("primary-materials", "Primary materials", {
+            group: "Electrical and Physical Information",
+            tier: "supporting",
+            valueKind: "list",
+            status: "confirmed",
+            originalValue: ["stainless steel", "plastic"],
+            normalizedValue: ["stainless steel", "plastic"],
+          }),
+        ]}
+        onOpenSource={vi.fn()}
+        onOpenRejected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("stainless steel · plastic")).toBeInTheDocument();
   });
 
   it("never renders a conflicting field as confirmed", () => {

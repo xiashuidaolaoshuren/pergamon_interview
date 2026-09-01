@@ -100,7 +100,73 @@ describe("nextQuestion ranking", () => {
     expect(nextQuestion(dossier, emptyState())).toBeNull();
   });
 
-  it("skips already-asked unresolved essentials and returns the next unasked essential", () => {
+  it("returns a supporting question after essentials clear when continueSupporting is set", () => {
+    const dossier = dossierWithStatuses([
+      ["primary-materials", "missing", "supporting"],
+      ["included-components", "unverified", "supporting"],
+    ]);
+
+    expect(
+      nextQuestion(
+        dossier,
+        emptyState({ essentialsClear: true, continueSupporting: true }),
+      ),
+    ).toEqual({
+      fieldKey: "primary-materials",
+      shape: "missing",
+    });
+  });
+
+  it("does not revisit an essential blocker left unresolved", () => {
+    const dossier = dossierWithStatuses([
+      ["capacity", "conflicting"],
+      ["importer-contact", "missing"],
+    ]);
+
+    expect(
+      nextQuestion(
+        dossier,
+        emptyState({ askedFieldKeys: ["capacity"], exhaustedFieldKeys: ["capacity"] }),
+      ),
+    ).toEqual({
+      fieldKey: "importer-contact",
+      shape: "missing",
+    });
+  });
+
+  it("pauses before presenting the sixth question", () => {
+    const dossier = dossierWithStatuses([
+      ["importer-contact", "missing"],
+      ["rated-power", "unverified"],
+    ]);
+
+    expect(
+      shouldPause(
+        emptyState({
+          questionCount: 5,
+          pausedForBudget: false,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      nextQuestion(
+        dossier,
+        emptyState({
+          questionCount: 5,
+          pausedForBudget: true,
+          askedFieldKeys: [
+            "capacity",
+            "importer-contact",
+            "rated-power",
+            "rated-voltage",
+            "rated-frequency",
+          ],
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null when every unresolved essential has already been asked", () => {
     const dossier = dossierWithStatuses([
       ["capacity", "conflicting"],
       ["importer-contact", "missing"],

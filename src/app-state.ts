@@ -1,5 +1,5 @@
 import { applyEvent, type ApplyEvent } from "./domain/apply.js";
-import { nextQuestion } from "./domain/planner.js";
+import { nextQuestion, SOFT_CAP } from "./domain/planner.js";
 import type {
   DossierField,
   ExtractionMode,
@@ -44,6 +44,7 @@ export type AppAction =
   | { type: "answer"; event: ApplyEvent }
   | { type: "leave-unresolved"; fieldKey: string }
   | { type: "continue-past-budget" }
+  | { type: "continue-supporting" }
   | { type: "finish" }
   | { type: "restart" };
 
@@ -69,13 +70,75 @@ export const initialAppState: AppState = {
   error: null,
 };
 
+function unresolvedEssentials(dossier: DossierField[]): DossierField[] {
+  return dossier.filter(
+    (field) =>
+      field.tier === "essential" &&
+      (field.status === "conflicting" ||
+        field.status === "missing" ||
+        field.status === "unverified"),
+  );
+}
+
+function unresolvedSupporting(dossier: DossierField[]): DossierField[] {
+  return dossier.filter(
+    (field) =>
+      field.tier === "supporting" &&
+      (field.status === "conflicting" ||
+        field.status === "missing" ||
+        field.status === "unverified"),
+  );
+}
+
 function advanceInterview(
   state: AppState,
   dossier: DossierField[],
   interview: InterviewState,
 ): AppState {
+  const essentialsRemaining = unresolvedEssentials(dossier);
+  const supportingRemaining = unresolvedSupporting(dossier);
+
+  if (
+    interview.questionCount >= SOFT_CAP &&
+    !interview.continuePastBudget &&
+    !interview.pausedForBudget
+  ) {
+    const pendingQuestion = nextQuestion(dossier, {
+      ...interview,
+      pausedForBudget: false,
+    });
+    if (pendingQuestion) {
+      return {
+        ...state,
+        phase: "interview",
+        dossier,
+        interview: {
+          ...interview,
+          phase: "interview",
+          pausedForBudget: true,
+          currentQuestionFieldKey: null,
+        },
+      };
+    }
+  }
+
   const question = nextQuestion(dossier, interview);
   if (!question) {
+    if (essentialsRemaining.length === 0 && supportingRemaining.length > 0) {
+      return {
+        ...state,
+        phase: "interview",
+        dossier,
+        interview: {
+          ...interview,
+          phase: "interview",
+          essentialsClear: true,
+          currentQuestionFieldKey: null,
+          pausedForBudget: false,
+        },
+      };
+    }
+
     return {
       ...state,
       phase: "report",
@@ -85,6 +148,7 @@ function advanceInterview(
         phase: "report",
         currentQuestionFieldKey: null,
         completionReason: "resolved",
+        pausedForBudget: false,
       },
     };
   }
@@ -97,6 +161,7 @@ function advanceInterview(
       ...interview,
       phase: "interview",
       currentQuestionFieldKey: question.fieldKey,
+      pausedForBudget: false,
     },
   };
 }
@@ -219,6 +284,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "leave-unresolved") {
+    const exhaustedFieldKeys = state.interview.exhaustedFieldKeys ?? [];
     const askedFieldKeys = state.interview.askedFieldKeys.includes(
       action.fieldKey,
     )
@@ -228,6 +294,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     const interview: InterviewState = {
       ...state.interview,
       askedFieldKeys,
+      exhaustedFieldKeys: exhaustedFieldKeys.includes(action.fieldKey)
+        ? exhaustedFieldKeys
+        : [...exhaustedFieldKeys, action.fieldKey],
       questionCount: state.interview.questionCount + 1,
     };
 
@@ -235,11 +304,35 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   }
 
   if (action.type === "continue-past-budget") {
+    const interview: InterviewState = {
+      ...state.interview,
+      continuePastBudget: true,
+      pausedForBudget: false,
+    };
+    const question = nextQuestion(state.dossier, interview);
     return {
       ...state,
+      phase: "interview",
       interview: {
-        ...state.interview,
-        continuePastBudget: true,
+        ...interview,
+        currentQuestionFieldKey: question?.fieldKey ?? null,
+      },
+    };
+  }
+
+  if (action.type === "continue-supporting") {
+    const interview: InterviewState = {
+      ...state.interview,
+      continueSupporting: true,
+      essentialsClear: true,
+    };
+    const question = nextQuestion(state.dossier, interview);
+    return {
+      ...state,
+      phase: "interview",
+      interview: {
+        ...interview,
+        currentQuestionFieldKey: question?.fieldKey ?? null,
       },
     };
   }

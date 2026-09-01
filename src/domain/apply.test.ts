@@ -205,6 +205,22 @@ describe("applyEvent provide-answer", () => {
     expect(field.resolutionHistory.at(-1)?.action).toBe("user-conflict");
     expect(authoringReadiness(result.dossier).verdict).toBe("needs-review");
   });
+
+  it("persists optional user source metadata on a missing field answer", () => {
+    const dossier = dossierWith(
+      dossierField("importer-contact", { status: "missing", valueKind: "prose" }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "provide-answer",
+      fieldKey: "importer-contact",
+      value: "Acme Imports GmbH",
+      sourceDescription: "purchase order PO-2214",
+    });
+
+    const field = result.dossier.find((item) => item.key === "importer-contact")!;
+    expect(field.userSourceDescription).toBe("purchase order PO-2214");
+  });
 });
 
 describe("applyEvent adjudicate", () => {
@@ -237,7 +253,7 @@ describe("applyEvent adjudicate", () => {
     expect(field.resolutionHistory.at(-1)?.detail).toContain("1.7 L");
   });
 
-  it("leaves a conflicting field unchanged when the selected value is not a candidate", () => {
+  it("leaves a conflicting field unchanged when adjudicating with an empty value", () => {
     const dossier = dossierWith(
       dossierField("capacity", {
         status: "conflicting",
@@ -251,15 +267,12 @@ describe("applyEvent adjudicate", () => {
     const result = applyEvent(dossier, {
       type: "adjudicate",
       fieldKey: "capacity",
-      selectedValue: "9 L",
+      selectedValue: "   ",
     });
 
     const field = result.dossier.find((item) => item.key === "capacity")!;
     expect(field.status).toBe("conflicting");
-    expect(field.originalValue).toEqual(["1.5 L", "1.7 L"]);
-    expect(field.markers).not.toContain("adjudicated");
     expect(field.conflictCandidates).toEqual(capacityConflictCandidates);
-    expect(field.adjudicatedLosers).toEqual([]);
   });
 
   it("retains every non-winner with provenance when adjudicating a three-way conflict", () => {
@@ -293,6 +306,32 @@ describe("applyEvent adjudicate", () => {
     expect(field.conflictCandidates).toEqual([]);
     expect(field.adjudicatedLosers).toEqual(capacityConflictCandidates);
     expect(field.evidence).toEqual([]);
+  });
+
+  it("adjudicates a custom user value and retains every document candidate as a loser", () => {
+    const dossier = dossierWith(
+      dossierField("capacity", {
+        status: "conflicting",
+        originalValue: ["1.5 L", "1.7 L"],
+        normalizedValue: ["1.5 L", "1.7 L"],
+        evidence: [sampleEvidence, manualEvidence],
+        conflictCandidates: capacityConflictCandidates,
+      }),
+    );
+
+    const result = applyEvent(dossier, {
+      type: "adjudicate",
+      fieldKey: "capacity",
+      selectedValue: "1.6 L",
+    });
+
+    const field = result.dossier.find((item) => item.key === "capacity")!;
+    expect(field.status).toBe("confirmed");
+    expect(field.originalValue).toBe("1.6 L");
+    expect(field.normalizedValue).toBe("1.6 L");
+    expect(field.markers).toContain("adjudicated");
+    expect(field.conflictCandidates).toEqual([]);
+    expect(field.adjudicatedLosers).toEqual(capacityConflictCandidates);
   });
 });
 

@@ -24,9 +24,9 @@ export interface ExtractionProgressProps {
 }
 
 const RECORDED_STEPS = [
-  "Read 2 documents · 5 pages, page boundaries preserved",
+  "Read 2 documents · 7 pages, page boundaries preserved",
   "Replaying recorded extraction — no model call, no API key",
-  "Validated 13 candidates against the dossier schema",
+  "Validated 15 candidates against the dossier schema",
   "Verified each cited quote on its named page — 1 citation rejected, retained for display",
   "Normalized values by value kind · reconciled into dossier state",
   "Essential-coverage check passed — interview can open",

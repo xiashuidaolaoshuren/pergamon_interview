@@ -39,6 +39,24 @@ describe("ExtractionProgress", () => {
     return Array.from(document.querySelectorAll(".step"));
   }
 
+  it("shows recorded replay copy with seven pages and fifteen validated candidates", () => {
+    render(
+      <ExtractionProgress
+        mode="recorded"
+        outcome="working"
+        error={null}
+        counts={null}
+        failedSources={undefined}
+        dossier={[]}
+        animationSession={1}
+        {...defaultHandlers}
+      />,
+    );
+
+    expect(screen.getByText(/7 pages/i)).toBeInTheDocument();
+    expect(screen.getByText(/15 candidates/i)).toBeInTheDocument();
+  });
+
   it("starts all steps pending, then activates the first after 350ms while working", async () => {
     vi.useFakeTimers();
     renderWorking();
