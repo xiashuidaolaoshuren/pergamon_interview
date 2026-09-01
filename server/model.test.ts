@@ -166,6 +166,27 @@ describe("extractCandidates", () => {
     expect(transport).toHaveBeenCalledOnce();
   });
 
+  it("wraps a bare array response as candidates", async () => {
+    const bareArray = JSON.stringify([
+      {
+        fieldKey: "product-name",
+        value: "Acme Rapid Kettle",
+        document: "supplier-spec",
+        page: 1,
+        quote: "Acme Rapid Kettle",
+      },
+    ]);
+    const transport = transportReturning(bareArray);
+    const result = await extractCandidates({
+      prompt: "extract",
+      transport,
+      apiKey: "test-key",
+    });
+
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.fieldKey).toBe("product-name");
+  });
+
   it("retries once with a schema-repair prompt when JSON is malformed", async () => {
     const transport = transportReturning("{not json", validExtraction);
     const result = await extractCandidates({
@@ -281,6 +302,25 @@ describe("extractCandidates", () => {
 describe("interpretAnswer", () => {
   it("parses structured interpret JSON from the transport", async () => {
     const transport = transportReturning(validInterpret);
+    const result = await interpretAnswer({
+      prompt: "interpret",
+      transport,
+      apiKey: "test-key",
+    });
+
+    expect(result.proposals).toHaveLength(1);
+    expect(result.proposals[0]?.fieldKey).toBe("importer-contact");
+  });
+
+  it("wraps a bare array response as proposals", async () => {
+    const bareArray = JSON.stringify([
+      {
+        fieldKey: "importer-contact",
+        proposedValue: "Acme Imports GmbH",
+        answerText: "Acme Imports GmbH in Berlin",
+      },
+    ]);
+    const transport = transportReturning(bareArray);
     const result = await interpretAnswer({
       prompt: "interpret",
       transport,

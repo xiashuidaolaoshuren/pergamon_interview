@@ -265,8 +265,9 @@ export async function extractCandidates(
     transport,
     log,
   );
+  const normalized = Array.isArray(parsed) ? { candidates: parsed } : parsed;
   try {
-    return extractionResponseSchema.parse(parsed);
+    return extractionResponseSchema.parse(normalized);
   } catch (error) {
     if (error instanceof ZodError) {
       log({
@@ -286,15 +287,20 @@ export async function interpretAnswer(
   const log = options.log ?? defaultModelLog;
   const transport =
     options.transport ?? createDefaultTransport(apiKey, { log });
-  const { parsed } = await requestStructuredJson(options.prompt, transport, log);
+  const { parsed, rawContent } = await requestStructuredJson(
+    options.prompt,
+    transport,
+    log,
+  );
+  const normalized = Array.isArray(parsed) ? { proposals: parsed } : parsed;
   try {
-    return proposalSchema.parse(parsed);
+    return proposalSchema.parse(normalized);
   } catch (error) {
     if (error instanceof ZodError) {
       log({
         phase: "schema-fail",
         issues: formatZodIssues(error),
-        contentPreview: previewContent(JSON.stringify(parsed)),
+        contentPreview: previewContent(rawContent),
       });
     }
     throw new ModelError("malformed", "The model returned an invalid response.");
