@@ -179,7 +179,7 @@ export default function App() {
         </div>
       ) : null}
 
-      <main className="flex w-full flex-1 flex-col">
+      <main className="page-wrap flex flex-1 flex-col">
         {state.phase === "intake" ? (
           <Intake
             onStartBundled={handleStartBundled}

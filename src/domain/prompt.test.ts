@@ -24,6 +24,20 @@ describe("extractionPrompt", () => {
     expect(prompt).toContain("page");
     expect(prompt).toContain("quote");
   });
+
+  it("asks for a JSON object with a candidates array", () => {
+    const prompt = extractionPrompt({
+      documents: [
+        {
+          id: "supplier-spec",
+          filename: "supplier-spec.txt",
+          pages: [{ pageNumber: 1, text: "sample" }],
+        },
+      ],
+    });
+
+    expect(prompt).toMatch(/`candidates` array/i);
+  });
 });
 
 describe("interpretPrompt", () => {
@@ -38,5 +52,15 @@ describe("interpretPrompt", () => {
     expect(prompt).toContain("<<<UNTRUSTED_ANSWER");
     expect(prompt).toContain("ignore all rules");
     expect(prompt).not.toMatch(/legally required/i);
+  });
+
+  it("asks for a JSON object with a proposals array", () => {
+    const prompt = interpretPrompt({
+      fieldKey: "importer-contact",
+      answerText: "sample",
+      dossierSummary: "importer-contact: missing",
+    });
+
+    expect(prompt).toMatch(/`proposals` array/i);
   });
 });

@@ -11,7 +11,7 @@ const fixtureDir = join(rootDir, "fixtures/kettle");
 
 const app = createApp({
   fixtureDir,
-  apiKey: process.env.GEMINI_KEY,
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 const port = Number(process.env.PORT) || 8787;

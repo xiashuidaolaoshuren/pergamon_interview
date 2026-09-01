@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { GeminiError } from "./gemini.js";
+import { ModelError } from "./model.js";
 import { createApp, MAX_UPLOAD_BYTES } from "./http.js";
 import type { DossierField } from "../src/domain/types.js";
 import type { RunExtractionInput, RunExtractionResult } from "./pipeline.js";
@@ -65,8 +65,8 @@ type InterpretResponseBody = {
 };
 
 describe("POST /api/extract recorded", () => {
-  it("returns dossier snapshot without GEMINI_KEY", async () => {
-    delete process.env.GEMINI_KEY;
+  it("returns dossier snapshot without OPENROUTER_API_KEY", async () => {
+    delete process.env.OPENROUTER_API_KEY;
     const app = createApp({ fixtureDir });
 
     const response = await app.request("/api/extract", {
@@ -153,8 +153,8 @@ describe("POST /api/extract intake validation", () => {
 });
 
 describe("POST /api/extract live missing key", () => {
-  it("returns a missing-key error naming GEMINI_KEY and recorded mode", async () => {
-    delete process.env.GEMINI_KEY;
+  it("returns a missing-key error naming OPENROUTER_API_KEY and recorded mode", async () => {
+    delete process.env.OPENROUTER_API_KEY;
     const app = createApp({ fixtureDir });
 
     const response = await app.request("/api/extract", {
@@ -167,7 +167,7 @@ describe("POST /api/extract live missing key", () => {
     expect(await response.json()).toMatchObject({
       error: {
         code: "missing-key",
-        envVar: "GEMINI_KEY",
+        envVar: "OPENROUTER_API_KEY",
         message: expect.stringContaining("recorded"),
       },
     });
@@ -261,9 +261,14 @@ describe("POST /api/extract upstream failure", () => {
     });
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
+    const body = await response.json();
+    expect(body).toMatchObject({
       error: { code: "gemini-unavailable" },
     });
+    expect(body.error.message).not.toMatch(/Gemini/i);
+    expect(body.error.message).toBe(
+      "The extraction model is temporarily unavailable.",
+    );
   });
 });
 
@@ -307,7 +312,7 @@ describe("POST /api/interpret", () => {
       fixtureDir,
       apiKey: "test-key",
       interpretAnswerFn: vi.fn(async () => {
-        throw new GeminiError("malformed", "Gemini returned malformed JSON.");
+        throw new ModelError("malformed", "The model returned malformed JSON.");
       }),
     });
 
@@ -355,7 +360,7 @@ describe("POST /api/interpret", () => {
       fixtureDir,
       apiKey: "test-key",
       interpretAnswerFn: vi.fn(async () => {
-        throw new GeminiError("upstream", "Gemini service request failed.");
+        throw new ModelError("upstream", "Model service request failed.");
       }),
     });
 

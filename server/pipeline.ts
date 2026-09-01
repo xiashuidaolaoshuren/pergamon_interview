@@ -15,7 +15,7 @@ import type {
   RejectedCandidate,
 } from "../src/domain/types.js";
 import { verifyCitation } from "../src/domain/verify.js";
-import { extractCandidates, type GeminiTransport } from "./gemini.js";
+import { extractCandidates, type ModelTransport } from "./model.js";
 import { extractPages, PdfExtractError } from "./pdf.js";
 
 interface PageCorpusDocument {
@@ -39,7 +39,7 @@ export interface RunExtractionInput {
   mode: ExtractionMode;
   fixtureDir?: string;
   uploads?: PipelineUpload[];
-  transport?: GeminiTransport;
+  transport?: ModelTransport;
   apiKey?: string;
 }
 
@@ -155,7 +155,7 @@ async function loadRecordedInputs(fixtureDir: string): Promise<{
 
 async function loadLiveInputs(
   uploads: PipelineUpload[],
-  transport: GeminiTransport | undefined,
+  transport: ModelTransport | undefined,
   apiKey?: string,
 ): Promise<{
   extraction: ReturnType<typeof extractionResponseSchema.parse>;

@@ -39,6 +39,17 @@ describe("ExtractionProgress", () => {
     return Array.from(document.querySelectorAll(".step"));
   }
 
+  it("shows vendor-neutral model step copy in live mode", () => {
+    renderWorking("live");
+
+    expect(
+      screen.getByText(/Sending document text to the model/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/to Gemini for structured extraction/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows recorded replay copy with seven pages and fifteen validated candidates", () => {
     render(
       <ExtractionProgress
@@ -167,8 +178,8 @@ describe("ExtractionProgress", () => {
         outcome="failed"
         error={{
           code: "missing-key",
-          message: "Gemini API key is not configured.",
-          envVar: "GEMINI_KEY",
+          message: "OpenRouter API key is not configured.",
+          envVar: "OPENROUTER_API_KEY",
         }}
         counts={null}
         failedSources={undefined}
@@ -182,9 +193,11 @@ describe("ExtractionProgress", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /live extraction needs a gemini api key/i }),
+      screen.getByRole("heading", {
+        name: /live extraction needs an openrouter api key/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/GEMINI_KEY=…/)).toBeInTheDocument();
+    expect(screen.getByText(/OPENROUTER_API_KEY=…/)).toBeInTheDocument();
     expect(screen.getByText(/\.env\.local/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry live extraction/i }));

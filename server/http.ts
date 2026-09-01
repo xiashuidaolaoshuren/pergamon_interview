@@ -13,10 +13,10 @@ import {
   type RunExtractionResult,
 } from "./pipeline.js";
 import {
-  GeminiError,
+  ModelError,
   interpretAnswer as defaultInterpretAnswer,
-  type GeminiTransport,
-} from "./gemini.js";
+  type ModelTransport,
+} from "./model.js";
 import {
   MAX_UPLOAD_BYTES,
   MAX_UPLOAD_COUNT,
@@ -46,7 +46,7 @@ export interface ApiErrorBody {
 export interface HttpDeps {
   fixtureDir: string;
   apiKey?: string;
-  transport?: GeminiTransport;
+  transport?: ModelTransport;
   runExtractionFn?: typeof runExtraction;
   interpretAnswerFn?: typeof defaultInterpretAnswer;
   maxRequestBytes?: number;
@@ -128,11 +128,11 @@ function loadFixtureUploads(fixtureDir: string): PipelineUpload[] {
   }));
 }
 
-function mapGeminiError(error: GeminiError): Response {
+function mapModelError(error: ModelError): Response {
   if (error.code === "upstream") {
     return jsonError(
       "gemini-unavailable",
-      "Gemini service is temporarily unavailable.",
+      "The extraction model is temporarily unavailable.",
       {},
       503,
     );
@@ -250,8 +250,8 @@ export function createApp(deps: HttpDeps) {
 
       return jsonError("invalid-intake", "Expected JSON or multipart upload.");
     } catch (error) {
-      if (error instanceof GeminiError) {
-        return mapGeminiError(error);
+      if (error instanceof ModelError) {
+        return mapModelError(error);
       }
       if (error instanceof AllSourcesFailedError) {
         return jsonError("all-sources-failed", error.message, {
@@ -283,14 +283,14 @@ export function createApp(deps: HttpDeps) {
       });
       return Response.json({ proposals: result.proposals });
     } catch (error) {
-      if (error instanceof GeminiError) {
+      if (error instanceof ModelError) {
         if (error.code === "malformed") {
           return jsonError(
             "rephrase",
             "Could not interpret the answer. Please rephrase.",
           );
         }
-        return mapGeminiError(error);
+        return mapModelError(error);
       }
       if (error instanceof z.ZodError || error instanceof SyntaxError) {
         return jsonError("invalid-request", "Invalid interpret request body.");

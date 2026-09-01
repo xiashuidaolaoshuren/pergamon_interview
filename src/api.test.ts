@@ -40,8 +40,8 @@ describe("extractFixture", () => {
           JSON.stringify({
             error: {
               code: "missing-key",
-              message: "Gemini API key is not configured.",
-              envVar: "GEMINI_KEY",
+              message: "OpenRouter API key is not configured.",
+              envVar: "OPENROUTER_API_KEY",
             },
           }),
           { status: 400, headers: { "Content-Type": "application/json" } },
@@ -51,7 +51,7 @@ describe("extractFixture", () => {
 
     await expect(extractFixture("live")).rejects.toMatchObject({
       code: "missing-key",
-      envVar: "GEMINI_KEY",
+      envVar: "OPENROUTER_API_KEY",
     });
     await expect(extractFixture("live")).rejects.toBeInstanceOf(ApiError);
   });

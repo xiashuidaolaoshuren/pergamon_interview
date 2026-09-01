@@ -6,7 +6,7 @@
       "pages": [
         {
           "pageNumber": 1,
-          "text": "ACME APPLIANCES LTD.\nConfidential OEM specification - not for retail packaging\n\nProduct: Acme Rapid Kettle\nModel identifier: ARK-1500\nSKU: ARK-1500-EU-B\nManufacturer: Acme Appliances Ltd.\nFactory: Shenzhen assembly line 3\n\nElectrical ratings (nameplate): 230 V, 50 Hz, class I\nSupply cord: 0.75 mm2, 0.75 m, Schuko plug\nNet weight: 0.92 kg\nMaster carton: 6 units, 420 x 280 x 260 mm\n\nThis document describes the OEM kettle supplied to private-label buyers.\nMarket-facing contact details are supplied by the buyer, not by the factory."
+          "text": "ACME APPLIANCES LTD.\nConfidential OEM specification - not for retail packaging\n\nProduct: Acme Rapid Kettle\nModel identifier: ARK-1500\nSKU: ARK-1500-EU-B\nManufacturer: Acme Appliances Ltd.\nFactory: Shenzhen assembly line 3\n\nElectrical ratings (nameplate): 230 V, 50 Hz, 2200 W, class I\nSupply cord: 0.75 mm2, 0.75 m, Schuko plug\nNet weight: 0.92 kg\nMaster carton: 6 units, 420 x 280 x 260 mm\n\nThis document describes the OEM kettle supplied to private-label buyers.\nMarket-facing contact details are supplied by the buyer, not by the factory."
         },
         {
           "pageNumber": 2,
