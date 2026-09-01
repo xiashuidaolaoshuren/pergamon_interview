@@ -62,6 +62,11 @@ function collectListItems(verified: VerifiedCandidate[]): unknown[] {
   return items;
 }
 
+function scalarIdentity(value: unknown): string {
+  if (typeof value === "string") return value.toLowerCase();
+  return JSON.stringify(value);
+}
+
 function reconcileScalar(
   def: FieldDefinition,
   verified: VerifiedCandidate[],
@@ -69,7 +74,7 @@ function reconcileScalar(
   const normalized = verified.map((item) =>
     normalizeValue(item.value, "scalar"),
   );
-  const unique = new Set(normalized.map((value) => JSON.stringify(value)));
+  const unique = new Set(normalized.map((value) => scalarIdentity(value)));
   const evidence = verified.map((item) => item.citation);
 
   if (unique.size === 1) {

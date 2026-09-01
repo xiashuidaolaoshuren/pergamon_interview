@@ -150,6 +150,31 @@ describe("reconcileCandidates scalar", () => {
     expect(power.normalizedValue).toBe("2200 W");
     expect(power.evidence).toEqual([kilowatt.citation, watt.citation]);
   });
+
+  it("confirms a scalar field when values differ only by case, keeping first casing and all evidence", () => {
+    const first = verified("manufacturer-or-supplier", "Acme Appliances Ltd.", {
+      quote: "Manufacturer: Acme Appliances Ltd.",
+      documentId: "ARK-1500_supplier-specification",
+      page: 1,
+    });
+    const second = verified("manufacturer-or-supplier", "ACME APPLIANCES LTD.", {
+      quote: "ACME APPLIANCES LTD.",
+      documentId: "ARK-1500_supplier-specification",
+      page: 1,
+    });
+    const dossier = reconcileCandidates({
+      evidence: [first, second],
+      rejected: [],
+      fields: KETTLE_FIELDS,
+    });
+
+    const manufacturer = fieldOf(dossier, "manufacturer-or-supplier");
+    expect(manufacturer.status).toBe("confirmed");
+    expect(manufacturer.originalValue).toBe("Acme Appliances Ltd.");
+    expect(manufacturer.normalizedValue).toBe("Acme Appliances Ltd.");
+    expect(manufacturer.evidence).toEqual([first.citation, second.citation]);
+    expect(manufacturer.conflictCandidates).toEqual([]);
+  });
 });
 
 describe("reconcileCandidates list", () => {

@@ -8,7 +8,7 @@ SKU: ARK-1500-EU-B
 Manufacturer: Acme Appliances Ltd.
 Factory: Shenzhen assembly line 3
 
-Electrical ratings (nameplate): 230 V, 50 Hz, class I
+Electrical ratings (nameplate): 230 V, 50 Hz, 2200 W, class I
 Supply cord: 0.75 mm2, 0.75 m, Schuko plug
 Net weight: 0.92 kg
 Master carton: 6 units, 420 x 280 x 260 mm

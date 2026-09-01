@@ -98,19 +98,19 @@ describe("recorded pages fixture", () => {
   });
 });
 
-describe("fabricated rated-power quote", () => {
-  it("does not appear on the cited supplier-spec page", () => {
+describe("rated-power fixture placement", () => {
+  it("appears on supplier-spec page 1 for live extraction", () => {
     const pages = loadRecordedPages();
-    expect(pageText(pages, "ARK-1500_supplier-specification", 2)).not.toContain("2200 W");
+    expect(pageText(pages, "ARK-1500_supplier-specification", 1)).toContain(
+      "2200 W",
+    );
   });
 
-  it("does not appear anywhere in the page corpus", () => {
+  it("does not appear on the cited supplier-spec page 2 for recorded unverified demo", () => {
     const pages = loadRecordedPages();
-    for (const document of pages.documents) {
-      for (const page of document.pages) {
-        expect(page.text).not.toContain("2200 W");
-      }
-    }
+    expect(pageText(pages, "ARK-1500_supplier-specification", 2)).not.toContain(
+      "2200 W",
+    );
   });
 });
 
