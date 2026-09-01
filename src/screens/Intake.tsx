@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ExtractionMode } from "@/domain/types.js";
-import { validateUploadFiles } from "./intake-upload.js";
+import { validateUploadFiles, MAX_UPLOAD_COUNT } from "./intake-upload.js";
 
 export interface IntakeProps {
   onStartBundled: (mode: ExtractionMode) => void;
@@ -125,9 +125,23 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
             multiple
             accept=".pdf,.txt"
             onChange={(event) => {
-              const files = Array.from(event.target.files ?? []);
-              setUploadFiles(files);
+              const incoming = Array.from(event.target.files ?? []);
+              setUploadFiles((prev) => {
+                const seen = new Set(
+                  prev.map((file) => `${file.name}|${file.size}|${file.lastModified}`),
+                );
+                const merged = [...prev];
+                for (const file of incoming) {
+                  const key = `${file.name}|${file.size}|${file.lastModified}`;
+                  if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(file);
+                  }
+                }
+                return merged.slice(0, MAX_UPLOAD_COUNT);
+              });
               setUploadError(null);
+              event.target.value = "";
             }}
           />
           {uploadFiles.length > 0 ? (
