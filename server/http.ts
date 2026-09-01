@@ -10,6 +10,7 @@ import {
   AllSourcesFailedError,
   runExtraction,
   type PipelineUpload,
+  type RunExtractionInput,
   type RunExtractionResult,
 } from "./pipeline.js";
 import {
@@ -142,14 +143,112 @@ function mapModelError(error: ModelError): Response {
   });
 }
 
-function extractionResponse(result: RunExtractionResult): Response {
-  return Response.json({
+function mapExtractionStreamError(error: unknown): {
+  code: string;
+  message: string;
+  envVar?: string;
+  failedSources?: RunExtractionResult["failedSources"];
+} {
+  if (error instanceof ModelError) {
+    if (error.code === "upstream") {
+      return {
+        code: "gemini-unavailable",
+        message: "The extraction model is temporarily unavailable.",
+      };
+    }
+    return {
+      code: error.code,
+      message: error.message,
+      envVar: error.envVar,
+    };
+  }
+  if (error instanceof AllSourcesFailedError) {
+    return {
+      code: "all-sources-failed",
+      message: error.message,
+      failedSources: error.failedSources,
+    };
+  }
+  if (error instanceof PdfExtractError) {
+    return {
+      code: error.code,
+      message: error.message,
+    };
+  }
+  if (error instanceof z.ZodError) {
+    return {
+      code: "invalid-request",
+      message: "Invalid extract request body.",
+    };
+  }
+  return {
+    code: "internal-error",
+    message: "Unexpected server error.",
+  };
+}
+
+function sseEncode(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function serializeExtractionResult(result: RunExtractionResult): Record<string, unknown> {
+  return {
     mode: result.mode,
     dossier: result.dossier,
     rejected: result.rejected,
     coverage: result.coverage,
     counts: result.counts,
     ...(result.failedSources ? { failedSources: result.failedSources } : {}),
+  };
+}
+
+function extractionSseResponse(
+  runInput: RunExtractionInput,
+  run: typeof runExtraction,
+): Response {
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(encoder.encode(sseEncode(event, data)));
+      };
+
+      try {
+        const result = await run({
+          ...runInput,
+          onProgress: (stage, status) => {
+            send("stage", { type: "stage", stage, status });
+          },
+        });
+        send("result", {
+          type: "result",
+          result: serializeExtractionResult(result),
+        });
+        controller.close();
+      } catch (error) {
+        const mapped = mapExtractionStreamError(error);
+        send("error", {
+          type: "error",
+          error: {
+            code: mapped.code,
+            message: mapped.message,
+            ...(mapped.envVar ? { envVar: mapped.envVar } : {}),
+            ...(mapped.failedSources
+              ? { failedSources: mapped.failedSources }
+              : {}),
+          },
+        });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
   });
 }
 
@@ -201,24 +300,28 @@ export function createApp(deps: HttpDeps) {
         const body = fixtureExtractSchema.parse(raw);
 
         if (body.mode === "recorded") {
-          const result = await run({
-            mode: "recorded",
-            fixtureDir: deps.fixtureDir,
-          });
-          return extractionResponse(result);
+          return extractionSseResponse(
+            {
+              mode: "recorded",
+              fixtureDir: deps.fixtureDir,
+            },
+            run,
+          );
         }
 
         const uploads = loadFixtureUploads(deps.fixtureDir);
         const invalid = intakeError(uploads);
         if (invalid) return invalid;
 
-        const result = await run({
-          mode: "live",
-          uploads,
-          transport: deps.transport,
-          apiKey: deps.apiKey,
-        });
-        return extractionResponse(result);
+        return extractionSseResponse(
+          {
+            mode: "live",
+            uploads,
+            transport: deps.transport,
+            apiKey: deps.apiKey,
+          },
+          run,
+        );
       }
 
       if (
@@ -239,28 +342,19 @@ export function createApp(deps: HttpDeps) {
         const invalid = intakeError(uploads);
         if (invalid) return invalid;
 
-        const result = await run({
-          mode: "live",
-          uploads,
-          transport: deps.transport,
-          apiKey: deps.apiKey,
-        });
-        return extractionResponse(result);
+        return extractionSseResponse(
+          {
+            mode: "live",
+            uploads,
+            transport: deps.transport,
+            apiKey: deps.apiKey,
+          },
+          run,
+        );
       }
 
       return jsonError("invalid-intake", "Expected JSON or multipart upload.");
     } catch (error) {
-      if (error instanceof ModelError) {
-        return mapModelError(error);
-      }
-      if (error instanceof AllSourcesFailedError) {
-        return jsonError("all-sources-failed", error.message, {
-          failedSources: error.failedSources,
-        });
-      }
-      if (error instanceof PdfExtractError) {
-        return jsonError(error.code, error.message);
-      }
       if (error instanceof z.ZodError) {
         return jsonError("invalid-request", "Invalid extract request body.");
       }

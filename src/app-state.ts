@@ -33,10 +33,19 @@ export interface AppState {
   failedSources: FailedSource[] | undefined;
   interview: InterviewState;
   error: { code: string; message: string; envVar?: string } | null;
+  progress: {
+    currentStage: number;
+    stageStatus: "started" | "done" | null;
+  } | null;
 }
 
 export type AppAction =
   | { type: "start-extract"; mode: ExtractionMode }
+  | {
+      type: "extract-progress";
+      currentStage: number;
+      stageStatus: "started" | "done";
+    }
   | { type: "extract-success"; coverage: "interview" | "insufficient"; dossier: DossierField[]; rejected: RejectedCandidate[]; counts: ExtractionCounts; failedSources?: FailedSource[]; mode: ExtractionMode }
   | { type: "extract-failure"; error: { code: string; message: string; envVar?: string } }
   | { type: "open-interview" }
@@ -68,6 +77,7 @@ export const initialAppState: AppState = {
   failedSources: undefined,
   interview: initialInterviewState,
   error: null,
+  progress: null,
 };
 
 function unresolvedEssentials(dossier: DossierField[]): DossierField[] {
@@ -173,6 +183,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       phase: "extracting",
       mode: action.mode,
       error: null,
+      progress: null,
+    };
+  }
+
+  if (action.type === "extract-progress") {
+    return {
+      ...state,
+      progress: {
+        currentStage: action.currentStage,
+        stageStatus: action.stageStatus,
+      },
     };
   }
 
@@ -198,6 +219,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       failedSources: action.failedSources,
       interview,
       error: null,
+      progress: null,
     };
   }
 

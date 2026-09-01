@@ -6,8 +6,9 @@ import {
   initialAppState,
   type AppState,
 } from "@/app-state";
-import { ApiError, extractFixture, extractUpload } from "@/api";
+import { ApiError, extractFixture, extractUpload, type ProgressEvent } from "@/api";
 import type { ExtractionMode } from "@/domain/types.js";
+import { progressFromEvent } from "@/extraction-progress";
 import { ExtractionProgress } from "@/screens/ExtractionProgress";
 import { InsufficientEvidence } from "@/screens/InsufficientEvidence";
 import { InterviewWorkspace } from "@/screens/InterviewWorkspace";
@@ -29,6 +30,7 @@ function appStateFromSession(session: StoredSession): AppState {
     dossier: session.dossier,
     rejected: session.rejected,
     interview: session.interview,
+    progress: null,
   };
 }
 
@@ -41,7 +43,6 @@ export default function App() {
   const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
   const lastRequest = useRef<LastExtractRequest | null>(null);
   const extractionGeneration = useRef(0);
-  const [animationSession, setAnimationSession] = useState(0);
   const [sessionPersistenceWarning, setSessionPersistenceWarning] = useState(false);
   const postIntake = state.phase !== "intake";
 
@@ -76,13 +77,30 @@ export default function App() {
     async (mode: ExtractionMode, files?: File[]) => {
       const generation = ++extractionGeneration.current;
       lastRequest.current = { mode, files };
-      setAnimationSession((session) => session + 1);
       dispatch({ type: "start-extract", mode });
+
+      const onEvent = (event: ProgressEvent) => {
+        if (generation !== extractionGeneration.current) {
+          return;
+        }
+        if (event.type !== "stage") {
+          return;
+        }
+        const progress = progressFromEvent(event);
+        if (!progress) {
+          return;
+        }
+        dispatch({
+          type: "extract-progress",
+          currentStage: progress.currentStage,
+          stageStatus: progress.stageStatus,
+        });
+      };
 
       try {
         const result = files
-          ? await extractUpload(files)
-          : await extractFixture(mode);
+          ? await extractUpload(files, onEvent)
+          : await extractFixture(mode, onEvent);
 
         if (generation !== extractionGeneration.current) {
           return;
@@ -201,7 +219,7 @@ export default function App() {
             counts={state.counts}
             failedSources={state.failedSources}
             dossier={state.dossier}
-            animationSession={animationSession}
+            progress={state.progress}
             onRetry={handleRetryExtraction}
             onUseRecorded={handleUseRecorded}
             onBackToIntake={handleRestart}

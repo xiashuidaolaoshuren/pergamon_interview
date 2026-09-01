@@ -253,9 +253,9 @@ export function createDefaultTransport(
   };
 }
 
-export async function extractCandidates(
+export async function fetchExtractionPayload(
   options: ModelCallOptions,
-): Promise<ExtractionResponse> {
+): Promise<{ normalized: unknown; rawContent: string }> {
   const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
   const log = options.log ?? defaultModelLog;
   const transport =
@@ -265,7 +265,17 @@ export async function extractCandidates(
     transport,
     log,
   );
-  const normalized = Array.isArray(parsed) ? { candidates: parsed } : parsed;
+  return {
+    normalized: Array.isArray(parsed) ? { candidates: parsed } : parsed,
+    rawContent,
+  };
+}
+
+export async function extractCandidates(
+  options: ModelCallOptions,
+): Promise<ExtractionResponse> {
+  const log = options.log ?? defaultModelLog;
+  const { normalized, rawContent } = await fetchExtractionPayload(options);
   try {
     return extractionResponseSchema.parse(normalized);
   } catch (error) {

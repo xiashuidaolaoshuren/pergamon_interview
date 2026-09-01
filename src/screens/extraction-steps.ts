@@ -1,106 +1,75 @@
-import { useEffect, useRef, useState } from "react";
-
-export const EXTRACTION_START_DELAY_MS = 350;
-export const EXTRACTION_TICK_INTERVAL_MS = 480;
-export const EXTRACTION_OUTCOME_DELAY_MS = 420;
-
 export type ExtractionOutcome = "working" | "failed" | "succeeded";
+
+export interface ExtractionProgressState {
+  currentStage: number;
+  stageStatus: "started" | "done" | null;
+}
 
 export function getStepClassName(
   index: number,
-  tickCount: number,
+  progress: ExtractionProgressState | null,
   stepCount: number,
-  skipAnimation: boolean,
+  outcome: ExtractionOutcome,
 ): string {
-  if (skipAnimation || tickCount > stepCount) {
+  if (outcome === "succeeded") {
     return "step done";
   }
-  if (tickCount === 0) {
+
+  if (outcome === "failed") {
+    if (!progress) {
+      return "step pending";
+    }
+    const completed =
+      index < progress.currentStage ||
+      (index === progress.currentStage && progress.stageStatus === "done");
+    if (completed) {
+      return "step done";
+    }
+    if (index === progress.currentStage && progress.stageStatus === "started") {
+      return "step active";
+    }
     return "step pending";
   }
-  if (index < tickCount - 1) {
+
+  if (!progress || progress.stageStatus === null) {
+    return "step pending";
+  }
+
+  if (index < progress.currentStage) {
     return "step done";
   }
-  if (index === tickCount - 1) {
-    return "step";
+
+  if (index === progress.currentStage) {
+    if (progress.stageStatus === "done") {
+      return "step done";
+    }
+    return "step active";
   }
+
   return "step pending";
 }
 
 export function getStepMark(
   index: number,
-  tickCount: number,
+  progress: ExtractionProgressState | null,
   stepCount: number,
-  skipAnimation: boolean,
+  outcome: ExtractionOutcome,
 ): string {
-  if (skipAnimation || tickCount > stepCount || index < tickCount - 1) {
+  const className = getStepClassName(index, progress, stepCount, outcome);
+  if (className.includes("done")) {
     return "✓";
+  }
+  if (className.includes("active")) {
+    return "";
   }
   return "·";
 }
 
-export function useExtractionStepAnimation(
+export function isActiveStep(
+  index: number,
+  progress: ExtractionProgressState | null,
   stepCount: number,
   outcome: ExtractionOutcome,
-  animationSession: number,
-): { tickCount: number; showOutcome: boolean } {
-  const skipAnimation = outcome !== "working";
-  const [tickCount, setTickCount] = useState(() =>
-    skipAnimation ? stepCount + 1 : 0,
-  );
-  const [showOutcome, setShowOutcome] = useState(skipAnimation);
-  const outcomeRef = useRef(outcome);
-  outcomeRef.current = outcome;
-
-  useEffect(() => {
-    if (outcome !== "working") {
-      return;
-    }
-
-    setTickCount(0);
-    setShowOutcome(false);
-
-    let current = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let cancelled = false;
-
-    const tick = () => {
-      if (cancelled) {
-        return;
-      }
-      current += 1;
-      setTickCount(current);
-      if (current <= stepCount) {
-        timer = setTimeout(tick, EXTRACTION_TICK_INTERVAL_MS);
-      }
-    };
-
-    timer = setTimeout(tick, EXTRACTION_START_DELAY_MS);
-
-    return () => {
-      cancelled = true;
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [animationSession, stepCount]);
-
-  useEffect(() => {
-    if (outcome === "working") {
-      return;
-    }
-    if (tickCount <= stepCount) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setShowOutcome(true);
-    }, EXTRACTION_OUTCOME_DELAY_MS);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [outcome, stepCount, tickCount]);
-
-  return { tickCount, showOutcome };
+): boolean {
+  return getStepClassName(index, progress, stepCount, outcome).includes("active");
 }
