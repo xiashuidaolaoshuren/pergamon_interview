@@ -45,7 +45,7 @@ test("recorded kettle: intake through conflict, gap, power, and report", async (
     .getByRole("button", { name: /confirm 2200 w as user-provided/i })
     .click();
 
-  await expect(page.getByText(/readiness report · hk-1750 kettle/i)).toBeVisible({
+  await expect(page.getByText(/readiness report · ark-1500 kettle/i)).toBeVisible({
     timeout: 20_000,
   });
   await expect(
