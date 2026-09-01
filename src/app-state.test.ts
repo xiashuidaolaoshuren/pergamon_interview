@@ -22,6 +22,20 @@ function emptyField(key: string): DossierField {
 }
 
 describe("appReducer", () => {
+  it("resets progress on start-extract", () => {
+    const withProgress = {
+      ...initialAppState,
+      progress: { currentStage: 2, stageStatus: "done" as const },
+    };
+
+    const next = appReducer(withProgress, {
+      type: "start-extract",
+      mode: "live",
+    });
+
+    expect(next.progress).toBeNull();
+  });
+
   it("transitions intake to extracting on start-extract", () => {
     const next = appReducer(initialAppState, {
       type: "start-extract",
@@ -107,6 +121,47 @@ describe("appReducer", () => {
 
     expect(next.phase).toBe("interview");
     expect(next.interview.phase).toBe("interview");
+  });
+
+  it("updates progress on extract-progress", () => {
+    const extracting = appReducer(initialAppState, {
+      type: "start-extract",
+      mode: "recorded",
+    });
+
+    const next = appReducer(extracting, {
+      type: "extract-progress",
+      currentStage: 1,
+      stageStatus: "started",
+    });
+
+    expect(next.progress).toEqual({
+      currentStage: 1,
+      stageStatus: "started",
+    });
+  });
+
+  it("clears progress on extract-success", () => {
+    const extracting = appReducer(initialAppState, {
+      type: "start-extract",
+      mode: "recorded",
+    });
+    const withProgress = appReducer(extracting, {
+      type: "extract-progress",
+      currentStage: 3,
+      stageStatus: "done",
+    });
+
+    const next = appReducer(withProgress, {
+      type: "extract-success",
+      coverage: "interview",
+      dossier: [{ ...emptyField("product-name"), status: "missing" }],
+      rejected: [],
+      counts: { extracted: 1, rejected: 0, conflicts: 0, missing: 1 },
+      mode: "recorded",
+    });
+
+    expect(next.progress).toBeNull();
   });
 
   it("preserves envVar on extract-failure", () => {

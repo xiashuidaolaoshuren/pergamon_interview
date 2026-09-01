@@ -15,8 +15,9 @@ import type {
   RejectedCandidate,
 } from "../src/domain/types.js";
 import { verifyCitation } from "../src/domain/verify.js";
-import { extractCandidates, type ModelTransport } from "./model.js";
+import { fetchExtractionPayload, ModelError, type ModelTransport } from "./model.js";
 import { extractPages, PdfExtractError } from "./pdf.js";
+import { ZodError } from "zod";
 
 interface PageCorpusDocument {
   id: string;
@@ -27,6 +28,16 @@ interface PageCorpusDocument {
 interface PageCorpus {
   documents: PageCorpusDocument[];
 }
+
+export type ExtractionStageId =
+  | "read-docs"
+  | "model-extract"
+  | "validate"
+  | "verify"
+  | "reconcile"
+  | "coverage";
+
+export type ExtractionStageStatus = "started" | "done";
 
 export interface PipelineUpload {
   id: string;
@@ -41,6 +52,10 @@ export interface RunExtractionInput {
   uploads?: PipelineUpload[];
   transport?: ModelTransport;
   apiKey?: string;
+  onProgress?: (
+    stage: ExtractionStageId,
+    status: ExtractionStageStatus,
+  ) => void;
 }
 
 export interface FailedSource {
@@ -141,27 +156,17 @@ function countMissing(dossier: DossierField[]): number {
   return dossier.filter((field) => field.status === "missing").length;
 }
 
-async function loadRecordedInputs(fixtureDir: string): Promise<{
-  extraction: ReturnType<typeof extractionResponseSchema.parse>;
-  corpus: PageCorpus;
-}> {
-  return {
-    extraction: extractionResponseSchema.parse(
-      loadJson(join(fixtureDir, "recorded-extraction.json")),
-    ),
-    corpus: loadJson<PageCorpus>(join(fixtureDir, "recorded-pages.json")),
-  };
+function emitProgress(
+  onProgress: RunExtractionInput["onProgress"],
+  stage: ExtractionStageId,
+  status: ExtractionStageStatus,
+): void {
+  onProgress?.(stage, status);
 }
 
-async function loadLiveInputs(
+async function readLiveCorpus(
   uploads: PipelineUpload[],
-  transport: ModelTransport | undefined,
-  apiKey?: string,
-): Promise<{
-  extraction: ReturnType<typeof extractionResponseSchema.parse>;
-  corpus: PageCorpus;
-  failedSources: FailedSource[];
-}> {
+): Promise<{ corpus: PageCorpus; failedSources: FailedSource[] }> {
   const documents: PageCorpusDocument[] = [];
   const failedSources: FailedSource[] = [];
 
@@ -196,15 +201,7 @@ async function loadLiveInputs(
     throw new AllSourcesFailedError(failedSources);
   }
 
-  const prompt = extractionPrompt({ documents });
-  const extraction = await extractCandidates({
-    prompt,
-    transport,
-    apiKey,
-  });
-
   return {
-    extraction,
     corpus: { documents },
     failedSources,
   };
@@ -213,29 +210,69 @@ async function loadLiveInputs(
 export async function runExtraction(
   input: RunExtractionInput,
 ): Promise<RunExtractionResult> {
-  const loaded =
-    input.mode === "recorded"
-      ? {
-          ...(await loadRecordedInputs(input.fixtureDir!)),
-          failedSources: [] as FailedSource[],
-        }
-      : await loadLiveInputs(
-          input.uploads ?? [],
-          input.transport,
-          input.apiKey,
-        );
+  const { onProgress } = input;
+  let corpus: PageCorpus;
+  let failedSources: FailedSource[] = [];
+  let extractionPayload: unknown;
 
-  const { extraction, corpus, failedSources } = loaded;
+  emitProgress(onProgress, "read-docs", "started");
+  if (input.mode === "recorded") {
+    corpus = loadJson<PageCorpus>(
+      join(input.fixtureDir!, "recorded-pages.json"),
+    );
+  } else {
+    const loaded = await readLiveCorpus(input.uploads ?? []);
+    corpus = loaded.corpus;
+    failedSources = loaded.failedSources;
+  }
+  emitProgress(onProgress, "read-docs", "done");
+
+  emitProgress(onProgress, "model-extract", "started");
+  if (input.mode === "recorded") {
+    extractionPayload = loadJson(
+      join(input.fixtureDir!, "recorded-extraction.json"),
+    );
+  } else {
+    const prompt = extractionPrompt({ documents: corpus.documents });
+    const fetched = await fetchExtractionPayload({
+      prompt,
+      transport: input.transport,
+      apiKey: input.apiKey,
+    });
+    extractionPayload = fetched.normalized;
+  }
+  emitProgress(onProgress, "model-extract", "done");
+
+  emitProgress(onProgress, "validate", "started");
+  let extraction;
+  try {
+    extraction = extractionResponseSchema.parse(extractionPayload);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      throw new ModelError("malformed", "The model returned an invalid response.");
+    }
+    throw error;
+  }
+  emitProgress(onProgress, "validate", "done");
 
   const candidates = extraction.candidates.map(toCandidate);
   const pageLookup = buildPageLookup(corpus);
+
+  emitProgress(onProgress, "verify", "started");
   const { verified, rejected } = verifyCandidates(candidates, pageLookup);
+  emitProgress(onProgress, "verify", "done");
+
+  emitProgress(onProgress, "reconcile", "started");
   const dossier = reconcileCandidates({
     evidence: verified,
     rejected,
     fields: KETTLE_FIELDS,
   });
+  emitProgress(onProgress, "reconcile", "done");
+
+  emitProgress(onProgress, "coverage", "started");
   const coverage = assessCoverage(dossier);
+  emitProgress(onProgress, "coverage", "done");
 
   return {
     mode: input.mode,

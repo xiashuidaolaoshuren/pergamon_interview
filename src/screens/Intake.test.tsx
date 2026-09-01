@@ -172,4 +172,60 @@ describe("Intake", () => {
     expect(onStartUpload).toHaveBeenCalledOnce();
     expect(onStartUpload.mock.calls[0]?.[0]).toEqual([file]);
   });
+
+  it("appends files from a second upload instead of replacing the staged list", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText(/choose pdf or txt files/i);
+    const spec = new File(["a"], "spec.pdf", { type: "application/pdf" });
+    const manual = new File(["b"], "manual.txt", { type: "text/plain" });
+
+    await user.upload(input, spec);
+    await user.upload(input, manual);
+
+    expect(screen.getByText("spec.pdf")).toBeInTheDocument();
+    expect(screen.getByText("manual.txt")).toBeInTheDocument();
+  });
+
+  it("does not stage the same file twice when uploaded again", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText(/choose pdf or txt files/i);
+    const spec = new File(["a"], "spec.pdf", { type: "application/pdf" });
+
+    await user.upload(input, spec);
+    await user.upload(input, spec);
+
+    expect(screen.getAllByText("spec.pdf")).toHaveLength(1);
+  });
+
+  it("caps the staged list at three files", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText(/choose pdf or txt files/i);
+    const files = [
+      new File(["1"], "one.pdf", { type: "application/pdf" }),
+      new File(["2"], "two.pdf", { type: "application/pdf" }),
+      new File(["3"], "three.pdf", { type: "application/pdf" }),
+      new File(["4"], "four.pdf", { type: "application/pdf" }),
+    ];
+
+    for (const file of files) {
+      await user.upload(input, file);
+    }
+
+    expect(screen.getByText("one.pdf")).toBeInTheDocument();
+    expect(screen.getByText("two.pdf")).toBeInTheDocument();
+    expect(screen.getByText("three.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("four.pdf")).not.toBeInTheDocument();
+  });
 });

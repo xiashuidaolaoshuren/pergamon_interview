@@ -21,8 +21,22 @@ test("recorded kettle: intake through conflict, gap, power, and report", async (
       response.request().method() === "POST" &&
       response.ok()
     ) {
-      const body = (await response.json()) as { mode?: string };
-      extractMode = body.mode ?? null;
+      const text = await response.text();
+      for (const block of text.split("\n\n")) {
+        const dataLine = block
+          .split("\n")
+          .find((line) => line.startsWith("data: "));
+        if (!dataLine) {
+          continue;
+        }
+        const event = JSON.parse(dataLine.slice(6)) as {
+          type?: string;
+          result?: { mode?: string };
+        };
+        if (event.type === "result") {
+          extractMode = event.result?.mode ?? null;
+        }
+      }
     }
   });
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExtractionProgress } from "./ExtractionProgress.js";
@@ -17,7 +17,10 @@ describe("ExtractionProgress", () => {
     vi.useRealTimers();
   });
 
-  function renderWorking(mode: "recorded" | "live" = "recorded") {
+  function renderWithProgress(
+    progress: { currentStage: number; stageStatus: "started" | "done" | null },
+    mode: "recorded" | "live" = "recorded",
+  ) {
     return render(
       <ExtractionProgress
         mode={mode}
@@ -26,7 +29,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
-        animationSession={1}
+        progress={progress}
         onRetry={vi.fn()}
         onUseRecorded={vi.fn()}
         onBackToIntake={vi.fn()}
@@ -35,9 +38,33 @@ describe("ExtractionProgress", () => {
     );
   }
 
+  function renderWorking(mode: "recorded" | "live" = "recorded") {
+    return renderWithProgress(
+      { currentStage: 0, stageStatus: null },
+      mode,
+    );
+  }
+
   function stepElements(): HTMLElement[] {
     return Array.from(document.querySelectorAll(".step"));
   }
+
+  it("marks step done only when stageStatus is done", () => {
+    renderWithProgress({ currentStage: 1, stageStatus: "started" });
+
+    const steps = stepElements();
+    expect(steps[0]).toHaveClass("done");
+    expect(steps[1]).toHaveClass("active");
+    expect(steps[1]).not.toHaveClass("done");
+    expect(steps[2]).toHaveClass("pending");
+  });
+
+  it("shows spinner on the active step while stageStatus is started", () => {
+    renderWithProgress({ currentStage: 1, stageStatus: "started" });
+
+    const steps = stepElements();
+    expect(steps[1]?.querySelector(".step-mark")).toHaveClass("step-spinner");
+  });
 
   it("shows vendor-neutral model step copy in live mode", () => {
     renderWorking("live");
@@ -59,7 +86,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
-        animationSession={1}
+        progress={{ currentStage: 0, stageStatus: null }}
         {...defaultHandlers}
       />,
     );
@@ -68,8 +95,7 @@ describe("ExtractionProgress", () => {
     expect(screen.getByText(/15 candidates/i)).toBeInTheDocument();
   });
 
-  it("starts all steps pending, then activates the first after 350ms while working", async () => {
-    vi.useFakeTimers();
+  it("starts with all steps pending before progress arrives", () => {
     renderWorking();
 
     const steps = stepElements();
@@ -77,37 +103,20 @@ describe("ExtractionProgress", () => {
     for (const step of steps) {
       expect(step).toHaveClass("pending");
     }
+  });
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(350);
-    });
+  it("marks the first step active when read-docs starts", () => {
+    renderWithProgress({ currentStage: 0, stageStatus: "started" });
 
-    const activeSteps = stepElements();
-    expect(activeSteps[0]).not.toHaveClass("pending");
-    expect(activeSteps[0]).not.toHaveClass("done");
-    for (const step of activeSteps.slice(1)) {
+    const steps = stepElements();
+    expect(steps[0]).toHaveClass("active");
+    expect(steps[0]).not.toHaveClass("done");
+    for (const step of steps.slice(1)) {
       expect(step).toHaveClass("pending");
     }
   });
 
-  it("marks the first step done and activates the second after 480ms", async () => {
-    vi.useFakeTimers();
-    renderWorking();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(350);
-      await vi.advanceTimersByTimeAsync(480);
-    });
-
-    const steps = stepElements();
-    expect(steps[0]).toHaveClass("done");
-    expect(steps[0]?.querySelector(".step-mark")?.textContent).toBe("✓");
-    expect(steps[1]).not.toHaveClass("pending");
-    expect(steps[1]).not.toHaveClass("done");
-  });
-
-  it("defers summary until step ticks finish plus 420ms after early success", async () => {
-    vi.useFakeTimers();
+  it("shows summary immediately when extraction succeeds", () => {
     const counts = {
       extracted: 13,
       rejected: 1,
@@ -121,24 +130,7 @@ describe("ExtractionProgress", () => {
       onOpenInterview: vi.fn(),
     };
 
-    const { rerender } = render(
-      <ExtractionProgress
-        mode="recorded"
-        outcome="working"
-        error={null}
-        counts={null}
-        failedSources={undefined}
-        dossier={[]}
-        animationSession={1}
-        {...handlers}
-      />,
-    );
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(350);
-    });
-
-    rerender(
+    render(
       <ExtractionProgress
         mode="recorded"
         outcome="succeeded"
@@ -146,21 +138,10 @@ describe("ExtractionProgress", () => {
         counts={counts}
         failedSources={undefined}
         dossier={[]}
-        animationSession={1}
+        progress={{ currentStage: 5, stageStatus: "done" }}
         {...handlers}
       />,
     );
-
-    expect(
-      screen.queryByRole("button", { name: /open the interview/i }),
-    ).not.toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(6 * 480);
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(420);
-    });
 
     expect(
       screen.getByRole("button", { name: /open the interview/i }),
@@ -184,7 +165,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
-        animationSession={0}
+        progress={{ currentStage: 1, stageStatus: "started" }}
         onRetry={onRetry}
         onUseRecorded={onUseRecorded}
         onBackToIntake={vi.fn()}
@@ -221,7 +202,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
-        animationSession={0}
+        progress={{ currentStage: 1, stageStatus: "started" }}
         onRetry={onRetry}
         onUseRecorded={vi.fn()}
         onBackToIntake={vi.fn()}
@@ -249,7 +230,7 @@ describe("ExtractionProgress", () => {
         counts={null}
         failedSources={undefined}
         dossier={[]}
-        animationSession={0}
+        progress={{ currentStage: 1, stageStatus: "started" }}
         onRetry={vi.fn()}
         onUseRecorded={vi.fn()}
         onBackToIntake={onBackToIntake}
@@ -321,7 +302,7 @@ describe("ExtractionProgress", () => {
             resolutionHistory: [],
           },
         ]}
-        animationSession={0}
+        progress={{ currentStage: 5, stageStatus: "done" }}
         onRetry={vi.fn()}
         onUseRecorded={vi.fn()}
         onBackToIntake={vi.fn()}

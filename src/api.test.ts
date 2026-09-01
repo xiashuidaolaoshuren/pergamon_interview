@@ -1,5 +1,82 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, extractFixture, extractUpload, interpretAnswer } from "./api.js";
+import {
+  ApiError,
+  extractFixture,
+  extractUpload,
+  interpretAnswer,
+  postExtractStream,
+  type ExtractResponse,
+} from "./api.js";
+
+function sseResultResponse(result: ExtractResponse): Response {
+  const body = `event: result\ndata: ${JSON.stringify({ type: "result", result })}\n\n`;
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
+function sseErrorResponse(code: string, message: string, envVar?: string): Response {
+  const body = `event: error\ndata: ${JSON.stringify({
+    type: "error",
+    error: { code, message, ...(envVar ? { envVar } : {}) },
+  })}\n\n`;
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
+describe("postExtractStream", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("parses SSE stage events from a ReadableStream", async () => {
+    const sseBody = [
+      'event: stage\ndata: {"type":"stage","stage":"read-docs","status":"started"}\n\n',
+      'event: stage\ndata: {"type":"stage","stage":"read-docs","status":"done"}\n\n',
+      'event: result\ndata: {"type":"result","result":{"mode":"recorded","dossier":[],"rejected":[],"coverage":"interview","counts":{"extracted":0,"rejected":0,"conflicts":0,"missing":0}}}\n\n',
+    ].join("");
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseBody));
+        controller.close();
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(stream, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      ),
+    );
+
+    const events: unknown[] = [];
+    const result = await postExtractStream(
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "fixture", mode: "recorded" }),
+      },
+      (event) => {
+        events.push(event);
+      },
+    );
+
+    expect(events).toEqual([
+      { type: "stage", stage: "read-docs", status: "started" },
+      { type: "stage", stage: "read-docs", status: "done" },
+    ]);
+    expect(result.mode).toBe("recorded");
+    expect(result.coverage).toBe("interview");
+  });
+});
 
 describe("extractFixture", () => {
   afterEach(() => {
@@ -8,16 +85,13 @@ describe("extractFixture", () => {
 
   it("posts JSON fixture body and parses success", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          mode: "recorded",
-          dossier: [],
-          rejected: [],
-          coverage: "interview",
-          counts: { extracted: 0, rejected: 0, conflicts: 0, missing: 0 },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
+      sseResultResponse({
+        mode: "recorded",
+        dossier: [],
+        rejected: [],
+        coverage: "interview",
+        counts: { extracted: 0, rejected: 0, conflicts: 0, missing: 0 },
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -36,15 +110,10 @@ describe("extractFixture", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "missing-key",
-              message: "OpenRouter API key is not configured.",
-              envVar: "OPENROUTER_API_KEY",
-            },
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
+        sseErrorResponse(
+          "missing-key",
+          "OpenRouter API key is not configured.",
+          "OPENROUTER_API_KEY",
         ),
       ),
     );
@@ -56,19 +125,11 @@ describe("extractFixture", () => {
     await expect(extractFixture("live")).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("rejects with ApiError on 500 internal-error", async () => {
+  it("rejects with ApiError on SSE error event", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "internal-error",
-              message: "Unexpected server error.",
-            },
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } },
-        ),
+        sseErrorResponse("internal-error", "Unexpected server error."),
       ),
     );
 
@@ -96,16 +157,13 @@ describe("extractUpload", () => {
 
   it("posts multipart with repeated files field", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          mode: "live",
-          dossier: [],
-          rejected: [],
-          coverage: "interview",
-          counts: { extracted: 0, rejected: 0, conflicts: 0, missing: 0 },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
+      sseResultResponse({
+        mode: "live",
+        dossier: [],
+        rejected: [],
+        coverage: "interview",
+        counts: { extracted: 0, rejected: 0, conflicts: 0, missing: 0 },
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 

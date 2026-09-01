@@ -64,7 +64,54 @@ type InterpretResponseBody = {
   proposals: unknown[];
 };
 
+async function readSseEvents(response: Response): Promise<unknown[]> {
+  const text = await response.text();
+  const events: unknown[] = [];
+  for (const block of text.split("\n\n")) {
+    if (!block.trim()) {
+      continue;
+    }
+    const dataLine = block
+      .split("\n")
+      .find((line) => line.startsWith("data: "));
+    if (dataLine) {
+      events.push(JSON.parse(dataLine.slice(6)));
+    }
+  }
+  return events;
+}
+
 describe("POST /api/extract recorded", () => {
+  it("streams stage events then result over SSE", async () => {
+    delete process.env.OPENROUTER_API_KEY;
+    const app = createApp({ fixtureDir });
+
+    const response = await app.request("/api/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "fixture", mode: "recorded" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      stage?: string;
+      status?: string;
+      result?: ExtractResponseBody;
+    }>;
+
+    expect(events[0]).toEqual({
+      type: "stage",
+      stage: "read-docs",
+      status: "started",
+    });
+    expect(events.at(-1)?.type).toBe("result");
+    expect(events.at(-1)?.result?.mode).toBe("recorded");
+    expect(events.at(-1)?.result?.dossier).toHaveLength(15);
+  });
+
   it("returns dossier snapshot without OPENROUTER_API_KEY", async () => {
     delete process.env.OPENROUTER_API_KEY;
     const app = createApp({ fixtureDir });
@@ -76,12 +123,17 @@ describe("POST /api/extract recorded", () => {
     });
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as ExtractResponseBody;
-    expect(body.mode).toBe("recorded");
-    expect(body.dossier).toHaveLength(15);
-    expect(body.coverage).toBe("interview");
-    expect(body.counts.rejected).toBe(1);
-    expect(body.dossier.find((field: { key: string }) => field.key === "capacity")?.status).toBe(
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      result?: ExtractResponseBody;
+    }>;
+    const body = events.at(-1)?.result;
+    expect(body).toBeDefined();
+    expect(body!.mode).toBe("recorded");
+    expect(body!.dossier).toHaveLength(15);
+    expect(body!.coverage).toBe("interview");
+    expect(body!.counts.rejected).toBe(1);
+    expect(body!.dossier.find((field: { key: string }) => field.key === "capacity")?.status).toBe(
       "conflicting",
     );
   });
@@ -163,8 +215,14 @@ describe("POST /api/extract live missing key", () => {
       body: JSON.stringify({ source: "fixture", mode: "live" }),
     });
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      error?: { code: string; envVar?: string; message: string };
+    }>;
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
       error: {
         code: "missing-key",
         envVar: "OPENROUTER_API_KEY",
@@ -237,8 +295,13 @@ describe("POST /api/extract schema failure", () => {
       body: JSON.stringify({ source: "fixture", mode: "live" }),
     });
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({
+    expect(response.status).toBe(200);
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      error?: { code: string };
+    }>;
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
       error: { code: "malformed" },
     });
   });
@@ -260,13 +323,19 @@ describe("POST /api/extract upstream failure", () => {
       body: JSON.stringify({ source: "fixture", mode: "live" }),
     });
 
-    expect(response.status).toBe(503);
-    const body = await response.json();
-    expect(body).toMatchObject({
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      error?: { code: string; message: string };
+    }>;
+    const errorEvent = events.at(-1);
+    expect(errorEvent).toMatchObject({
+      type: "error",
       error: { code: "gemini-unavailable" },
     });
-    expect(body.error.message).not.toMatch(/Gemini/i);
-    expect(body.error.message).toBe(
+    expect(errorEvent?.error?.message).not.toMatch(/Gemini/i);
+    expect(errorEvent?.error?.message).toBe(
       "The extraction model is temporarily unavailable.",
     );
   });
@@ -502,8 +571,12 @@ describe("POST /api/extract partial multi-document failure", () => {
     });
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as ExtractResponseBody;
-    expect(body.failedSources).toEqual([
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      result?: ExtractResponseBody;
+    }>;
+    const body = events.at(-1)?.result;
+    expect(body?.failedSources).toEqual([
       expect.objectContaining({
         filename: "blank.pdf",
         code: "image-only",
@@ -541,7 +614,7 @@ describe("POST /api/interpret dossier validation", () => {
 });
 
 describe("HTTP error envelope", () => {
-  it("returns JSON internal-error when extraction throws unexpectedly", async () => {
+  it("returns SSE internal-error when extraction throws unexpectedly", async () => {
     const app = createApp({
       fixtureDir,
       runExtractionFn: vi.fn(async () => {
@@ -555,14 +628,19 @@ describe("HTTP error envelope", () => {
       body: JSON.stringify({ source: "fixture", mode: "recorded" }),
     });
 
-    expect(response.status).toBe(500);
-    expect(response.headers.get("content-type")).toMatch(/json/);
-    expect(await response.json()).toMatchObject({
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      error?: { code: string; message: string };
+    }>;
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
       error: { code: "internal-error", message: "Unexpected server error." },
     });
   });
 
-  it("returns JSON internal-error when recorded fixture JSON is corrupt", async () => {
+  it("returns SSE internal-error when recorded fixture JSON is corrupt", async () => {
     const dir = mkdtempSync(join(tmpdir(), "evidenceready-"));
     writeFileSync(join(dir, "recorded-extraction.json"), "{");
     writeFileSync(join(dir, "recorded-pages.json"), "{}");
@@ -574,14 +652,18 @@ describe("HTTP error envelope", () => {
       body: JSON.stringify({ source: "fixture", mode: "recorded" }),
     });
 
-    expect(response.status).toBe(500);
-    expect(response.headers.get("content-type")).toMatch(/json/);
-    expect(await response.json()).toMatchObject({
+    expect(response.status).toBe(200);
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      error?: { code: string };
+    }>;
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
       error: { code: "internal-error" },
     });
   });
 
-  it("returns JSON internal-error when the fixture directory is missing", async () => {
+  it("returns SSE internal-error when the fixture directory is missing", async () => {
     const app = createApp({
       fixtureDir: join(tmpdir(), "evidenceready-missing-fixtures"),
     });
@@ -592,9 +674,13 @@ describe("HTTP error envelope", () => {
       body: JSON.stringify({ source: "fixture", mode: "recorded" }),
     });
 
-    expect(response.status).toBe(500);
-    expect(response.headers.get("content-type")).toMatch(/json/);
-    expect(await response.json()).toMatchObject({
+    expect(response.status).toBe(200);
+    const events = (await readSseEvents(response)) as Array<{
+      type: string;
+      error?: { code: string };
+    }>;
+    expect(events.at(-1)).toMatchObject({
+      type: "error",
       error: { code: "internal-error" },
     });
   });

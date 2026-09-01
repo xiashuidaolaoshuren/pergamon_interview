@@ -6,7 +6,8 @@ import { errorRecoveryAction } from "./extraction-errors.js";
 import {
   getStepClassName,
   getStepMark,
-  useExtractionStepAnimation,
+  isActiveStep,
+  type ExtractionProgressState,
 } from "./extraction-steps.js";
 
 export interface ExtractionProgressProps {
@@ -16,7 +17,7 @@ export interface ExtractionProgressProps {
   counts: ExtractionCounts | null;
   failedSources: FailedSource[] | undefined;
   dossier: DossierField[];
-  animationSession: number;
+  progress: ExtractionProgressState | null;
   onRetry: () => void;
   onUseRecorded: () => void;
   onBackToIntake: () => void;
@@ -73,23 +74,16 @@ export function ExtractionProgress({
   counts,
   failedSources,
   dossier,
-  animationSession,
+  progress,
   onRetry,
   onUseRecorded,
   onBackToIntake,
   onOpenInterview,
 }: ExtractionProgressProps) {
   const steps = mode === "recorded" ? RECORDED_STEPS : LIVE_STEPS;
-  const { tickCount, showOutcome } = useExtractionStepAnimation(
-    steps.length,
-    outcome,
-    animationSession,
-  );
-  const skipAnimation =
-    outcome !== "working" && (showOutcome || tickCount > steps.length);
   const recovery =
     outcome === "failed" && error ? errorRecoveryAction(error.code) : null;
-  const revealOutcome = showOutcome && outcome !== "working";
+  const revealOutcome = outcome !== "working";
 
   return (
     <section className="screen-pad screen-enter">
@@ -109,13 +103,19 @@ export function ExtractionProgress({
               key={label}
               className={getStepClassName(
                 index,
-                tickCount,
+                progress,
                 steps.length,
-                skipAnimation,
+                outcome,
               )}
             >
-              <span className="step-mark">
-                {getStepMark(index, tickCount, steps.length, skipAnimation)}
+              <span
+                className={
+                  isActiveStep(index, progress, steps.length, outcome)
+                    ? "step-mark step-spinner"
+                    : "step-mark"
+                }
+              >
+                {getStepMark(index, progress, steps.length, outcome)}
               </span>
               <span>{label}</span>
             </div>
