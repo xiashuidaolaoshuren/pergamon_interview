@@ -47,6 +47,24 @@ describe("Intake", () => {
     expect(
       screen.getByText(/Image-only PDFs are unsupported/i),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/sent to the extraction model/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/sent to Gemini/i)).not.toBeInTheDocument();
+  });
+
+  it("describes live extraction as DeepSeek via OpenRouter", async () => {
+    const user = userEvent.setup();
+    render(
+      <Intake onStartBundled={vi.fn()} onStartUpload={vi.fn()} />,
+    );
+
+    const modeGroup = screen.getByRole("radiogroup", { name: /extraction mode/i });
+    await user.click(within(modeGroup).getByRole("radio", { name: /live extraction/i }));
+
+    expect(
+      screen.getByText(/Sends the same two documents to DeepSeek via OpenRouter/i),
+    ).toBeInTheDocument();
   });
 
   it("switches bundled mode to live when live radio is selected", async () => {

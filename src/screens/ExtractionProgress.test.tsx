@@ -39,6 +39,17 @@ describe("ExtractionProgress", () => {
     return Array.from(document.querySelectorAll(".step"));
   }
 
+  it("shows vendor-neutral model step copy in live mode", () => {
+    renderWorking("live");
+
+    expect(
+      screen.getByText(/Sending document text to the model/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/to Gemini for structured extraction/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows recorded replay copy with seven pages and fifteen validated candidates", () => {
     render(
       <ExtractionProgress

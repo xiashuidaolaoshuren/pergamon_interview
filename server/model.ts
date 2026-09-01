@@ -5,13 +5,13 @@ import {
   type ProposalResponse,
 } from "../src/domain/schemas.js";
 
-export const GEMINI_MODEL = "google/gemini-3.7-flash";
+export const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash-vision-exp";
 export const OPENROUTER_CHAT_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 
-export type GeminiTransport = (prompt: string) => Promise<string>;
+export type ModelTransport = (prompt: string) => Promise<string>;
 
-export type GeminiErrorCode =
+export type ModelErrorCode =
   | "missing-key"
   | "quota"
   | "auth"
@@ -19,35 +19,35 @@ export type GeminiErrorCode =
   | "malformed"
   | "upstream";
 
-export class GeminiError extends Error {
-  readonly code: GeminiErrorCode;
+export class ModelError extends Error {
+  readonly code: ModelErrorCode;
   readonly envVar?: string;
 
-  constructor(code: GeminiErrorCode, message: string, envVar?: string) {
+  constructor(code: ModelErrorCode, message: string, envVar?: string) {
     super(message);
-    this.name = "GeminiError";
+    this.name = "ModelError";
     this.code = code;
     this.envVar = envVar;
   }
 }
 
-interface GeminiCallOptions {
+interface ModelCallOptions {
   prompt: string;
-  transport?: GeminiTransport;
+  transport?: ModelTransport;
   apiKey?: string;
 }
 
 function requireApiKey(apiKey: string | undefined): string {
   if (apiKey && apiKey.trim().length > 0) return apiKey.trim();
-  throw new GeminiError(
+  throw new ModelError(
     "missing-key",
     "OPENROUTER_API_KEY is not configured. Use recorded extraction mode or set OPENROUTER_API_KEY.",
     "OPENROUTER_API_KEY",
   );
 }
 
-function mapTransportError(error: unknown): GeminiError {
-  if (error instanceof GeminiError) return error;
+function mapTransportError(error: unknown): ModelError {
+  if (error instanceof ModelError) return error;
 
   const status =
     typeof error === "object" &&
@@ -58,35 +58,35 @@ function mapTransportError(error: unknown): GeminiError {
       : undefined;
 
   if (status === 401 || status === 403) {
-    return new GeminiError("auth", "Gemini authentication failed.");
+    return new ModelError("auth", "Model authentication failed.");
   }
   if (status === 402 || status === 429) {
-    return new GeminiError("quota", "Gemini quota or rate limit exceeded.");
+    return new ModelError("quota", "Model quota or rate limit exceeded.");
   }
   if (error instanceof TypeError) {
-    return new GeminiError("network", "Gemini network request failed.");
+    return new ModelError("network", "Model network request failed.");
   }
 
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   if (message.includes("quota") || message.includes("rate limit")) {
-    return new GeminiError("quota", "Gemini quota or rate limit exceeded.");
+    return new ModelError("quota", "Model quota or rate limit exceeded.");
   }
   if (message.includes("unauthorized") || message.includes("authentication")) {
-    return new GeminiError("auth", "Gemini authentication failed.");
+    return new ModelError("auth", "Model authentication failed.");
   }
   if (message.includes("fetch failed") || message.includes("network")) {
-    return new GeminiError("network", "Gemini network request failed.");
+    return new ModelError("network", "Model network request failed.");
   }
   if (status !== undefined && status >= 500) {
-    return new GeminiError("upstream", "Gemini service request failed.");
+    return new ModelError("upstream", "Model service request failed.");
   }
 
-  return new GeminiError("upstream", "Gemini service request failed.");
+  return new ModelError("upstream", "Model service request failed.");
 }
 
 async function callTransport(
   prompt: string,
-  transport: GeminiTransport,
+  transport: ModelTransport,
 ): Promise<string> {
   try {
     return await transport(prompt);
@@ -101,7 +101,7 @@ function parseJson(raw: string): unknown {
 
 async function requestStructuredJson(
   prompt: string,
-  transport: GeminiTransport,
+  transport: ModelTransport,
 ): Promise<unknown> {
   const first = await callTransport(prompt, transport);
   try {
@@ -116,12 +116,12 @@ async function requestStructuredJson(
     try {
       return parseJson(repaired);
     } catch {
-      throw new GeminiError("malformed", "Gemini returned malformed JSON.");
+      throw new ModelError("malformed", "The model returned malformed JSON.");
     }
   }
 }
 
-export function createDefaultTransport(apiKey: string): GeminiTransport {
+export function createDefaultTransport(apiKey: string): ModelTransport {
   return async (prompt: string) => {
     const response = await fetch(OPENROUTER_CHAT_URL, {
       method: "POST",
@@ -130,10 +130,9 @@ export function createDefaultTransport(apiKey: string): GeminiTransport {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: GEMINI_MODEL,
+        model: OPENROUTER_MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        reasoning: { effort: "low" },
       }),
     });
 
@@ -152,7 +151,7 @@ export function createDefaultTransport(apiKey: string): GeminiTransport {
 }
 
 export async function extractCandidates(
-  options: GeminiCallOptions,
+  options: ModelCallOptions,
 ): Promise<ExtractionResponse> {
   const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
   const transport =
@@ -161,12 +160,12 @@ export async function extractCandidates(
   try {
     return extractionResponseSchema.parse(parsed);
   } catch {
-    throw new GeminiError("malformed", "Gemini returned an invalid response.");
+    throw new ModelError("malformed", "The model returned an invalid response.");
   }
 }
 
 export async function interpretAnswer(
-  options: GeminiCallOptions,
+  options: ModelCallOptions,
 ): Promise<ProposalResponse> {
   const apiKey = requireApiKey(options.apiKey ?? process.env.OPENROUTER_API_KEY);
   const transport =
@@ -175,6 +174,6 @@ export async function interpretAnswer(
   try {
     return proposalSchema.parse(parsed);
   } catch {
-    throw new GeminiError("malformed", "Gemini returned an invalid response.");
+    throw new ModelError("malformed", "The model returned an invalid response.");
   }
 }

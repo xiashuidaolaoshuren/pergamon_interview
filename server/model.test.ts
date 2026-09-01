@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDefaultTransport,
   extractCandidates,
-  GEMINI_MODEL,
-  GeminiError,
   interpretAnswer,
-} from "./gemini.js";
+  ModelError,
+  OPENROUTER_MODEL,
+} from "./model.js";
 
 const validExtraction = JSON.stringify({
   candidates: [
@@ -43,7 +43,7 @@ describe("createDefaultTransport", () => {
     vi.unstubAllGlobals();
   });
 
-  it("POSTs OpenRouter chat completions with google/gemini-3.7-flash and json_object", async () => {
+  it("POSTs OpenRouter chat completions with DeepSeek Vision Exp and json_object", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       return new Response(
         JSON.stringify({
@@ -66,8 +66,10 @@ describe("createDefaultTransport", () => {
       "Content-Type": "application/json",
     });
     const body = JSON.parse(String(init?.body));
-    expect(body.model).toBe(GEMINI_MODEL);
+    expect(body.model).toBe("deepseek/deepseek-v4-flash-vision-exp");
+    expect(body.model).toBe(OPENROUTER_MODEL);
     expect(body.response_format).toEqual({ type: "json_object" });
+    expect(body.reasoning).toBeUndefined();
     expect(body.messages).toEqual([
       { role: "user", content: "extract this dossier" },
     ]);
@@ -112,7 +114,7 @@ describe("extractCandidates", () => {
     expect(String(transport.mock.calls[1]?.[0])).toContain("schema repair");
   });
 
-  it("maps structurally invalid JSON to a malformed GeminiError", async () => {
+  it("maps structurally invalid JSON to a malformed ModelError", async () => {
     const transport = transportReturning(JSON.stringify({ candidates: "nope" }));
     await expect(
       extractCandidates({
@@ -121,7 +123,7 @@ describe("extractCandidates", () => {
         apiKey: "test-key",
       }),
     ).rejects.toMatchObject({
-      name: "GeminiError",
+      name: "ModelError",
       code: "malformed",
     });
   });
@@ -193,7 +195,7 @@ describe("interpretAnswer", () => {
     expect(result.proposals[0]?.fieldKey).toBe("importer-contact");
   });
 
-  it("maps structurally invalid interpret JSON to a malformed GeminiError", async () => {
+  it("maps structurally invalid interpret JSON to a malformed ModelError", async () => {
     const transport = transportReturning(JSON.stringify({ proposals: "nope" }));
     await expect(
       interpretAnswer({
@@ -202,13 +204,13 @@ describe("interpretAnswer", () => {
         apiKey: "test-key",
       }),
     ).rejects.toMatchObject({
-      name: "GeminiError",
+      name: "ModelError",
       code: "malformed",
     });
   });
 });
 
-describe("GeminiError", () => {
+describe("ModelError", () => {
   it("names recorded mode for missing-key errors", async () => {
     try {
       await extractCandidates({
@@ -217,7 +219,7 @@ describe("GeminiError", () => {
       });
       expect.fail("expected missing-key error");
     } catch (error) {
-      expect(error).toBeInstanceOf(GeminiError);
+      expect(error).toBeInstanceOf(ModelError);
       expect(String(error)).toContain("recorded");
     }
   });

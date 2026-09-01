@@ -237,6 +237,7 @@ Suggested use: limitations / AI-assisted workflow, one short anecdote.
 - Cause 2 (same UI): `400 FAILED_PRECONDITION` “User location is not supported for the API use.”
 - Response: swap to `gemini-3.7-flash`; keep recorded replay as the deterministic demo; treat live Gemini as best-effort from a supported region.
 - **Update (Sep 2026):** Live extract now routes through OpenRouter (`google/gemini-3.7-flash`) with `OPENROUTER_API_KEY` in `.env.local`, bypassing the Google Developer API geo block without changing the control plane.
+- **Update (Sep 2026, later):** OpenRouter returned `403` provider ToS for Gemini (and other providers) on a restricted account. Live model switched to `deepseek/deepseek-v4-flash-vision-exp` with text-only prompts; unpdf page text and quote verification unchanged.
 - What we would do next: map location/precondition (and unknown-model 404) to distinct codes and copy, instead of `gemini-unavailable`.
 
 ---

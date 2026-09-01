@@ -34,7 +34,7 @@ const RECORDED_STEPS = [
 
 const LIVE_STEPS = [
   "Read uploaded documents · page boundaries preserved",
-  "Sending document text to Gemini for structured extraction…",
+  "Sending document text to the model for structured extraction…",
   "Validated candidates against the dossier schema",
   "Verified each cited quote on its named page",
   "Normalized values by value kind · reconciled into dossier state",

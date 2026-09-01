@@ -9,7 +9,7 @@ export interface IntakeProps {
 }
 
 const PRIVACY_SENTENCE =
-  "Image-only PDFs are unsupported — OCR is outside this prototype's scope. Document contents are sent to Gemini for extraction; raw files are processed in memory and never stored.";
+  "Image-only PDFs are unsupported — OCR is outside this prototype's scope. Document contents are sent to the extraction model; raw files are processed in memory and never stored.";
 
 const COVERAGE_GATE_NOTE =
   "Documents can parse successfully and still fail the essential-coverage check if too few essential fields produce any candidate, the interview does not open. The threshold is a declared constant, not a model judgement, so a thin marketing PDF cannot turn the session into a data-entry form.";
@@ -92,7 +92,7 @@ export function Intake({ onStartBundled, onStartUpload }: IntakeProps) {
               <span>
                 <strong>Live extraction</strong>
                 <p>
-                  Sends the same two documents to Gemini via OpenRouter.
+                  Sends the same two documents to DeepSeek via OpenRouter.
                   Requires a server-side OpenRouter API key.
                 </p>
               </span>
