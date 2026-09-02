@@ -187,7 +187,7 @@ I look at the test results first. Then I walk through the entire app workflow my
 - **Quote verification is syntactic, not semantic.** The system proves the cited text appears on the named page. It does not prove the quote supports the extracted value.
 - **No "not applicable."** A field without boil-dry protection reports as missing, not absent. Prose fields never conflict — two different intended-use descriptions show one value and one alternate, not a disagreement to resolve.
 - **Live extraction is best-effort.** Vendor model ids, account restrictions, and region policy change. Some distinct API failures still map to the same "temporarily unavailable" copy; Retry is the wrong action for a geo or unknown-model error.
-- **Kettle schema only.** No OCR, no images, no spreadsheets, no cross-device persistence beyond browser storage, no multi-user review.
+- **Kettle schema only.** Uploads accept any PDF or TXT, but extraction, questions, and readiness all run against one 15-field electric-kettle table (`src/domain/fields.ts`). A toaster spec is still scored as a kettle dossier; fields that do not map are discarded, and thin or off-category documents tend to hit insufficient evidence. No OCR, images, spreadsheets, cross-device persistence, or multi-user review.
 - **Minor bugs may remain.** I did not have time for a full test pass beyond the MVP. Domain tests and the recorded smoke path cover the core workflow; edge cases and screens I did not walk every time may still hide small defects.
 - **The model harness is weak.** Live extraction and answer interpretation can vary from run to run. There is no pinned-output harness that scores or diffs model results, so quality is judged by schema validation, quote verification, and what I see in the UI.
 - **UI may not be aligned.** Screens follow the prototype in structure, but I skipped a second visual pass. Spacing, responsive layout, and copy can still drift from the intended design.
@@ -199,7 +199,7 @@ If I joined Pergamon and had one more month on this idea, I would:
 
 1. Finish testing and UI alignment, and tighten the model harness so live extraction is measured rather than judged by eye.
 2. Accept rating-label photos, spreadsheets, and OCR-backed documents.
-3. Add category-specific dossier schemas and versioned blueprint metadata instead of one hard-coded kettle table.
+3. Extend beyond kettles. The control plane is already driven by one declarative field table, so a second product category is mostly a new table — prompts, ranking, and readiness follow. Versioned blueprint metadata can come after the kettle MVP path stays solid.
 4. Research the feasibility of handing a ready dossier into Pergamon's authoring workflow, and adjacent PIM, ERP, or supplier systems — before committing to an integration.
 5. Re-run evidence checks when a source document or product specification changes.
 6. Measure extraction accuracy, unsupported-citation rate, unresolved-field rate, and time to authoring readiness — still without a compliance score.
