@@ -61,6 +61,34 @@ describe("App extraction lifecycle", () => {
     vi.clearAllMocks();
   });
 
+  it("starts at intake even when a stored interview session exists", () => {
+    vi.mocked(session.loadSession).mockReturnValue({
+      dossier: mockExtractResponse.dossier,
+      rejected: [],
+      mode: "recorded",
+      interview: {
+        phase: "interview",
+        currentQuestionFieldKey: "product-name",
+        askedFieldKeys: ["product-name"],
+        answeredFieldKeys: [],
+        declaredUnavailableFieldKeys: [],
+        questionCount: 1,
+        continuePastBudget: false,
+        completionReason: null,
+      },
+      excerpts: [],
+    });
+
+    render(<App />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: /know what your documents can prove before authoring begins/i,
+      }),
+    ).toBeInTheDocument();
+    expect(session.clearSession).toHaveBeenCalled();
+  });
+
   it("ignores a stale extraction completion after restart", async () => {
     const user = userEvent.setup();
     let resolveExtract!: (value: typeof mockExtractResponse) => void;

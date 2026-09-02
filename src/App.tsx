@@ -4,7 +4,6 @@ import { ModeBadge } from "@/components/ModeBadge";
 import {
   appReducer,
   initialAppState,
-  type AppState,
 } from "@/app-state";
 import { ApiError, extractFixture, extractUpload, type ProgressEvent } from "@/api";
 import type { ExtractionMode } from "@/domain/types.js";
@@ -14,33 +13,15 @@ import { InsufficientEvidence } from "@/screens/InsufficientEvidence";
 import { InterviewWorkspace } from "@/screens/InterviewWorkspace";
 import { Intake } from "@/screens/Intake";
 import { ReadinessReport } from "@/screens/ReadinessReport";
-import { clearSession, loadSession, saveSession } from "@/session";
-import type { StoredSession } from "@/session";
+import { clearSession, saveSession } from "@/session";
 
 interface LastExtractRequest {
   mode: ExtractionMode;
   files?: File[];
 }
 
-function appStateFromSession(session: StoredSession): AppState {
-  return {
-    ...initialAppState,
-    phase: session.interview.phase,
-    mode: session.mode,
-    dossier: session.dossier,
-    rejected: session.rejected,
-    interview: session.interview,
-    progress: null,
-  };
-}
-
-function createInitialState(): AppState {
-  const session = loadSession();
-  return session ? appStateFromSession(session) : initialAppState;
-}
-
 export default function App() {
-  const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(appReducer, undefined, () => initialAppState);
   const lastRequest = useRef<LastExtractRequest | null>(null);
   const extractionGeneration = useRef(0);
   const [sessionPersistenceWarning, setSessionPersistenceWarning] = useState(false);
@@ -49,6 +30,10 @@ export default function App() {
   const handleRestart = useCallback(() => {
     extractionGeneration.current += 1;
     dispatch({ type: "restart" });
+  }, []);
+
+  useEffect(() => {
+    clearSession();
   }, []);
 
   useEffect(() => {
